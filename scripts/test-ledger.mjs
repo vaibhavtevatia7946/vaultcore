@@ -1,12 +1,12 @@
 // ====================================================================
-// VaultCore Automated Verification & Integrity Test Suite
+// VaultCore Automated Verification & Integrity Test Suite (Indian Banking & UPI Spec)
 // Run via: npm test
 // ====================================================================
 
 import assert from 'assert';
 
 console.log('\n=============================================================');
-console.log('🧪 VAULTCORE AUTOMATED SYSTEM INTEGRITY & CONCURRENCY TESTS');
+console.log('🇮🇳 VAULTCORE: NPCI & UPI 2.0 CONCURRENCY TEST SUITE');
 console.log('=============================================================\n');
 
 let testsPassed = 0;
@@ -36,13 +36,12 @@ async function runAsyncTest(testName, fn) {
   }
 }
 
-// Minimal in-memory simulation for test isolation
 class TestLedger {
   constructor() {
     this.accounts = new Map([
-      ['alice', { id: 'alice', name: 'Alice', balance: 1000.0 }],
-      ['bob', { id: 'bob', name: 'Bob', balance: 500.0 }],
-      ['treasury', { id: 'treasury', name: 'Treasury', balance: 100000.0 }],
+      ['aarav', { id: 'aarav', name: 'Aarav Sharma', vpa: 'aarav@oksbi', balance: 50000.0, currency: 'INR' }],
+      ['priya', { id: 'priya', name: 'Priya Patel', vpa: 'priya@icici', balance: 25000.0, currency: 'INR' }],
+      ['treasury', { id: 'treasury', name: 'RBI Settlement Pool', vpa: 'npci.settle@rbi', balance: 10000000.0, currency: 'INR' }],
     ]);
     this.ledger = [];
     this.idempotency = new Map();
@@ -82,13 +81,13 @@ class TestLedger {
       const src = this.accounts.get(sourceId);
       const dst = this.accounts.get(destId);
 
-      if (!src || !dst) throw new Error('Account not found');
-      if (src.balance < amount) throw new Error('Insufficient funds');
+      if (!src || !dst) throw new Error('Account not found in Core Banking System');
+      if (src.balance < amount) throw new Error('Insufficient funds in payer account');
 
       src.balance = Number((src.balance - amount).toFixed(2));
       dst.balance = Number((dst.balance + amount).toFixed(2));
 
-      const txId = `tx_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+      const txId = `upi_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
       this.ledger.push({ txId, accountId: sourceId, type: 'DEBIT', amount });
       this.ledger.push({ txId, accountId: destId, type: 'CREDIT', amount });
 
@@ -124,31 +123,31 @@ async function runAllSuites() {
   const ledger = new TestLedger();
 
   // Test 1: Genesis Accounts
-  runTest('Suite 1: Genesis account balances are initialized correctly', () => {
-    assert.strictEqual(ledger.accounts.get('alice').balance, 1000.0);
-    assert.strictEqual(ledger.accounts.get('bob').balance, 500.0);
-    assert.strictEqual(ledger.accounts.get('treasury').balance, 100000.0);
+  runTest('Suite 1: Indian bank balances & VPAs initialized correctly', () => {
+    assert.strictEqual(ledger.accounts.get('aarav').balance, 50000.0);
+    assert.strictEqual(ledger.accounts.get('priya').balance, 25000.0);
+    assert.strictEqual(ledger.accounts.get('treasury').balance, 10000000.0);
   });
 
-  // Test 2: Atomic Transfer & Double-Entry Invariant
-  await runAsyncTest('Suite 2: Double-Entry posting updates balances and preserves Debit == Credit', async () => {
-    const res = await ledger.transfer('alice', 'bob', 100.0, 'idem_test_1');
+  // Test 2: Double-Entry Posting
+  await runAsyncTest('Suite 2: P2P UPI Transfer preserves RBI Invariant: Σ(Debit) == Σ(Credit)', async () => {
+    const res = await ledger.transfer('aarav', 'priya', 2500.0, 'RRN_1762589001');
     assert.strictEqual(res.replayed, false);
-    assert.strictEqual(ledger.accounts.get('alice').balance, 900.0);
-    assert.strictEqual(ledger.accounts.get('bob').balance, 600.0);
+    assert.strictEqual(ledger.accounts.get('aarav').balance, 47500.0);
+    assert.strictEqual(ledger.accounts.get('priya').balance, 27500.0);
 
     const audit = ledger.verifyInvariant();
-    assert.strictEqual(audit.debits, 100.0);
-    assert.strictEqual(audit.credits, 100.0);
+    assert.strictEqual(audit.debits, 2500.0);
+    assert.strictEqual(audit.credits, 2500.0);
     assert.strictEqual(audit.delta, 0.0);
   });
 
-  // Test 3: Idempotency Protection
-  await runAsyncTest('Suite 3: Replaying same Idempotency-Key does NOT deduct balance twice', async () => {
-    const balanceBefore = ledger.accounts.get('alice').balance;
-    const res = await ledger.transfer('alice', 'bob', 100.0, 'idem_test_1'); // Same key as Suite 2
+  // Test 3: NPCI RRN Idempotency Replay
+  await runAsyncTest('Suite 3: Replaying identical NPCI RRN does NOT deduct balance twice', async () => {
+    const balanceBefore = ledger.accounts.get('aarav').balance;
+    const res = await ledger.transfer('aarav', 'priya', 2500.0, 'RRN_1762589001'); // Same RRN
     assert.strictEqual(res.replayed, true);
-    assert.strictEqual(ledger.accounts.get('alice').balance, balanceBefore, 'Balance should not change on replay');
+    assert.strictEqual(ledger.accounts.get('aarav').balance, balanceBefore, 'Balance must remain unchanged on RRN retry');
 
     const audit = ledger.verifyInvariant();
     assert.strictEqual(audit.delta, 0.0);
@@ -158,31 +157,31 @@ async function runAllSuites() {
   await runAsyncTest('Suite 4: Overdraft protection rejects transfer when amount > balance', async () => {
     let failedAsExpected = false;
     try {
-      await ledger.transfer('bob', 'alice', 500000.0, 'idem_overdraft_test');
+      await ledger.transfer('priya', 'aarav', 5000000.0, 'RRN_OVERDRAFT_TEST');
     } catch (err) {
       failedAsExpected = true;
-      assert.strictEqual(err.message, 'Insufficient funds');
+      assert.strictEqual(err.message, 'Insufficient funds in payer account');
     }
     assert.strictEqual(failedAsExpected, true);
   });
 
-  // Test 5: High-Concurrency Stress Test (50 Parallel Requests)
-  await runAsyncTest('Suite 5: 50 Concurrent cross-transfers execute with 0 race condition corruption', async () => {
+  // Test 5: Concurrency Stress Test
+  await runAsyncTest('Suite 5: 50 Concurrent cross-payments execute with 0 race condition corruption', async () => {
     const promises = [];
     for (let i = 0; i < 50; i++) {
       const isEven = i % 2 === 0;
-      const src = isEven ? 'alice' : 'bob';
-      const dst = isEven ? 'bob' : 'alice';
-      const key = `concurrency_worker_${i}_${Date.now()}`;
-      promises.push(ledger.transfer(src, dst, 10.0, key));
+      const src = isEven ? 'aarav' : 'priya';
+      const dst = isEven ? 'priya' : 'aarav';
+      const key = `RRN_CONCURRENCY_${i}_${Date.now()}`;
+      promises.push(ledger.transfer(src, dst, 100.0, key));
     }
 
     const results = await Promise.all(promises);
     assert.strictEqual(results.length, 50);
 
     const audit = ledger.verifyInvariant();
-    assert.strictEqual(audit.delta, 0.0, 'Mathematical delta MUST remain 0.00 under high concurrency');
-    console.log(`    ↳ Verified 50 concurrent transactions | Total Debits: $${audit.debits} | Total Credits: $${audit.credits} | Delta: $${audit.delta}`);
+    assert.strictEqual(audit.delta, 0.0, 'RBI Mathematical delta MUST remain ₹0.00');
+    console.log(`    ↳ Verified 50 concurrent UPI txns | Total Debits: ₹${audit.debits} | Total Credits: ₹${audit.credits} | Delta: ₹${audit.delta}`);
   });
 
   console.log('\n-------------------------------------------------------------');

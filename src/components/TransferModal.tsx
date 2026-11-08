@@ -21,8 +21,8 @@ export const TransferModal: React.FC<TransferModalProps> = ({
   setDestId,
   onTransferSuccess,
 }) => {
-  const [amount, setAmount] = useState<string>('150.00');
-  const [description, setDescription] = useState<string>('Contractor Payout - Milestone 1');
+  const [amount, setAmount] = useState<string>('1500.00');
+  const [description, setDescription] = useState<string>('Dinner bill split via UPI');
   const [idempotencyKey, setIdempotencyKey] = useState<string>('');
   const [simulatedLatency, setSimulatedLatency] = useState<number>(0);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -33,10 +33,10 @@ export const TransferModal: React.FC<TransferModalProps> = ({
     error?: string;
   } | null>(null);
 
-  // Generate a fresh random UUID idempotency key on initial load
+  // Generate NPCI Retrieval Reference Number (RRN) / UUID format
   const generateNewKey = () => {
-    const key = `idem_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-    setIdempotencyKey(key);
+    const rrn = `RRN_${Date.now()}_${Math.floor(100000 + Math.random() * 900000)}`;
+    setIdempotencyKey(rrn);
   };
 
   useEffect(() => {
@@ -88,13 +88,13 @@ export const TransferModal: React.FC<TransferModalProps> = ({
       } else {
         setLastResult({
           success: false,
-          error: data.error || 'Transfer failed',
+          error: data.error || 'UPI Transfer failed',
         });
       }
     } catch (err: any) {
       setLastResult({
         success: false,
-        error: err.message || 'Network communication error',
+        error: err.message || 'NPCI switch timeout / network error',
       });
     } finally {
       setIsSubmitting(false);
@@ -109,12 +109,12 @@ export const TransferModal: React.FC<TransferModalProps> = ({
             <Send className="w-4 h-4" />
           </div>
           <div>
-            <h2 className="text-sm font-semibold text-white tracking-tight">Execute Ledger Transfer</h2>
-            <p className="text-[11px] text-slate-400">Atomic double-entry posting with idempotency protection</p>
+            <h2 className="text-sm font-semibold text-white tracking-tight">Initiate UPI 2.0 Transfer</h2>
+            <p className="text-[11px] text-slate-400">Atomic double-entry posting with NPCI RRN idempotency</p>
           </div>
         </div>
         <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-          SERIALIZABLE ISOLATION
+          NPCI SWITCH COMPLIANT
         </span>
       </div>
 
@@ -123,7 +123,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label className="block text-[11px] font-medium text-slate-300 uppercase tracking-wider mb-1">
-              Source Account (Debit)
+              Payer UPI Account (Debit)
             </label>
             <select
               value={sourceId}
@@ -132,7 +132,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({
             >
               {accounts.map((a) => (
                 <option key={a.id} value={a.id}>
-                  {a.name} (${a.balance.toFixed(2)})
+                  {a.name} ({a.vpa}) - ₹{a.balance.toLocaleString('en-IN')}
                 </option>
               ))}
             </select>
@@ -140,7 +140,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({
 
           <div>
             <label className="block text-[11px] font-medium text-slate-300 uppercase tracking-wider mb-1">
-              Destination Account (Credit)
+              Payee UPI Account (Credit)
             </label>
             <select
               value={destId}
@@ -149,7 +149,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({
             >
               {accounts.map((a) => (
                 <option key={a.id} value={a.id} disabled={a.id === sourceId}>
-                  {a.name} (${a.balance.toFixed(2)}) {a.id === sourceId ? '(Source)' : ''}
+                  {a.name} ({a.vpa}) {a.id === sourceId ? '(Payer)' : ''}
                 </option>
               ))}
             </select>
@@ -160,20 +160,20 @@ export const TransferModal: React.FC<TransferModalProps> = ({
         <div>
           <div className="flex items-center justify-between mb-1">
             <label className="text-[11px] font-medium text-slate-300 uppercase tracking-wider">
-              Amount (USD)
+              Amount (INR ₹)
             </label>
             {sourceAccount && (
               <span className={`text-[11px] font-mono ${isInsufficient ? 'text-rose-400 font-bold' : 'text-slate-400'}`}>
-                Available: ${sourceAccount.balance.toFixed(2)}
+                Available: ₹{sourceAccount.balance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
               </span>
             )}
           </div>
           <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-mono">$</span>
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">₹</span>
             <input
               type="number"
-              step="0.01"
-              min="0.01"
+              step="1"
+              min="1"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               className="w-full bg-[#090b10] border border-white/10 rounded-xl pl-8 pr-4 py-2.5 text-sm font-mono-num font-semibold text-white focus:outline-none focus:border-blue-500"
@@ -182,27 +182,27 @@ export const TransferModal: React.FC<TransferModalProps> = ({
             />
           </div>
 
-          {/* Preset Buttons */}
+          {/* Preset Buttons in INR */}
           <div className="flex items-center space-x-2 mt-2">
-            {[25, 100, 500, 1000].map((val) => (
+            {[500, 1000, 2000, 5000].map((val) => (
               <button
                 key={val}
                 type="button"
                 onClick={() => setAmount(val.toFixed(2))}
                 className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/5 text-[10px] font-mono text-slate-300 transition-colors"
               >
-                +${val}
+                +₹{val.toLocaleString('en-IN')}
               </button>
             ))}
           </div>
         </div>
 
-        {/* Idempotency Key Section - The Key Feature */}
+        {/* NPCI RRN / Idempotency Key Section */}
         <div className="p-3 rounded-xl bg-[#090b10] border border-white/5 space-y-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-1.5 text-xs text-slate-300 font-medium">
               <Key className="w-3.5 h-3.5 text-amber-400" />
-              <span>Idempotency-Key (Header)</span>
+              <span>NPCI RRN / Idempotency-Key</span>
             </div>
             <div className="flex items-center space-x-2">
               <button
@@ -211,7 +211,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({
                 className="text-[10px] font-mono text-blue-400 hover:text-blue-300 flex items-center space-x-1"
               >
                 <RotateCcw className="w-3 h-3" />
-                <span>New UUID</span>
+                <span>New RRN</span>
               </button>
             </div>
           </div>
@@ -223,7 +223,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({
             required
           />
           <p className="text-[10px] text-slate-500">
-            Clicking transfer again with the exact same key will safely replay the previous result without double-debiting.
+            UPI Protocol Guarantee: Submitting with identical RRN safely replays the previous confirmation without double-debiting.
           </p>
         </div>
 
@@ -231,7 +231,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({
         <div className="flex items-center justify-between pt-1">
           <div className="flex items-center space-x-1.5 text-[11px] text-slate-400">
             <Clock className="w-3.5 h-3.5 text-slate-500" />
-            <span>Simulate Cloud Latency:</span>
+            <span>Simulate Bank CBS Latency:</span>
           </div>
           <div className="flex items-center space-x-2">
             <input
@@ -262,17 +262,17 @@ export const TransferModal: React.FC<TransferModalProps> = ({
           {isSubmitting ? (
             <>
               <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              <span>Acquiring Distributed Locks & Posting...</span>
+              <span>Acquiring Bank Locks & Settling on NPCI Switch...</span>
             </>
           ) : isInsufficient ? (
             <>
               <ShieldAlert className="w-4 h-4" />
-              <span>Insufficient Funds in Source Wallet</span>
+              <span>Insufficient Funds in Payer Bank Account</span>
             </>
           ) : (
             <>
               <Zap className="w-4 h-4 text-cyan-300" />
-              <span>Execute Atomic Transfer (${parseFloat(amount || '0').toFixed(2)})</span>
+              <span>Pay ₹{parseFloat(amount || '0').toLocaleString('en-IN')} via UPI</span>
             </>
           )}
         </button>
@@ -300,9 +300,9 @@ export const TransferModal: React.FC<TransferModalProps> = ({
                 <span>
                   {lastResult.success
                     ? lastResult.replayed
-                      ? '⚡ IDEMPOTENT REPLAY DETECTED'
-                      : '✓ TRANSFER SETTLED & LOCKED'
-                    : '✗ TRANSACTION REJECTED'}
+                      ? '⚡ IDEMPOTENT RRN REPLAY DETECTED'
+                      : '✓ UPI SETTLEMENT SUCCESSFUL'
+                    : '✗ UPI TRANSACTION FAILED'}
                 </span>
                 {lastResult.tx && (
                   <span className="font-mono text-[10px] opacity-75">
@@ -313,13 +313,13 @@ export const TransferModal: React.FC<TransferModalProps> = ({
               <p className="text-[11px] opacity-90">
                 {lastResult.success
                   ? lastResult.replayed
-                    ? 'Identical response returned from memory cache without repeating balance deduction.'
-                    : `Settled $${lastResult.tx?.amount.toFixed(2)} from ${lastResult.tx?.sourceAccountName} to ${lastResult.tx?.destinationAccountName}.`
+                    ? 'Identical confirmation returned from in-memory cache without repeating account debit.'
+                    : `Settled ₹${lastResult.tx?.amount.toLocaleString('en-IN')} from ${lastResult.tx?.sourceAccountName} (${lastResult.tx?.sourceVpa}) to ${lastResult.tx?.destinationAccountName} (${lastResult.tx?.destinationVpa}).`
                   : lastResult.error}
               </p>
               {lastResult.tx && (
                 <div className="pt-1 flex items-center space-x-2 text-[10px] font-mono opacity-80">
-                  <span>Tx: {lastResult.tx.id}</span>
+                  <span>Txn: {lastResult.tx.id}</span>
                   <span>•</span>
                   <span>Locks: [{lastResult.tx.lockAcquiredOrder.join(' → ')}]</span>
                 </div>

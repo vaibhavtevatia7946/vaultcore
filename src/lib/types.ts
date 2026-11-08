@@ -3,9 +3,11 @@ export type AccountType = 'USER' | 'MERCHANT' | 'TREASURY';
 export interface Account {
   id: string;
   name: string;
+  vpa: string; // UPI ID (e.g. aarav@oksbi)
   accountNumber: string;
+  bankName: string;
   type: AccountType;
-  balance: number; // in cents or currency units
+  balance: number; // in INR (₹)
   currency: string;
   avatarColor: string;
   createdAt: string;
@@ -16,16 +18,18 @@ export type TransactionStatus = 'PENDING' | 'COMPLETED' | 'FAILED' | 'ROLLED_BAC
 
 export interface Transaction {
   id: string;
-  idempotencyKey: string;
+  idempotencyKey: string; // NPCI RRN / Client UUID
   sourceAccountId: string;
   destinationAccountId: string;
   sourceAccountName: string;
   destinationAccountName: string;
+  sourceVpa: string;
+  destinationVpa: string;
   amount: number;
   currency: string;
   status: TransactionStatus;
   description: string;
-  lockAcquiredOrder: string[]; // e.g. ["acc_1", "acc_2"] to prove Resource Ordering
+  lockAcquiredOrder: string[]; // Lexicographical ordering to eliminate deadlocks
   executionTimeMs: number;
   createdAt: string;
   replayedFromCache?: boolean;
@@ -38,11 +42,12 @@ export interface LedgerEntry {
   transactionId: string;
   accountId: string;
   accountName: string;
+  vpa: string;
   type: EntryType;
   amount: number;
   currency: string;
   balanceAfter: number;
-  hash: string; // Cryptographic SHA-256 integrity hash
+  hash: string; // SHA-256 Merkle chain hash
   createdAt: string;
 }
 
@@ -67,7 +72,7 @@ export interface IdempotencyRecord {
 export interface ConcurrencySimulationResult {
   totalRequestsSent: number;
   successfulTransfers: number;
-  rejectedTransfers: number; // e.g. insufficient funds or duplicate idempotency
+  rejectedTransfers: number;
   deadlocksAvoided: number;
   raceConditionDoubleSpendsDetected: number;
   totalExecutionTimeMs: number;

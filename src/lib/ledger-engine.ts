@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import { Account, Transaction, LedgerEntry, InvariantAudit, IdempotencyRecord } from './types';
 
-// In-Memory Production-Grade State Store (Simulates PostgreSQL with strict ACID transactions)
+// In-Memory Production-Grade State Store (Simulates NPCI / CBS PostgreSQL with strict ACID transactions)
 class LedgerEngine {
   private accounts: Map<string, Account> = new Map();
   private transactions: Transaction[] = [];
@@ -24,48 +24,58 @@ class LedgerEngine {
 
     const initialAccounts: Omit<Account, 'createdAt' | 'updatedAt'>[] = [
       {
-        id: 'acc_alice',
-        name: 'Alice Cooper',
-        accountNumber: 'VAULT-001042',
+        id: 'acc_aarav',
+        name: 'Aarav Sharma',
+        vpa: 'aarav@oksbi',
+        accountNumber: 'SBIN0004128-9842',
+        bankName: 'State Bank of India',
         type: 'USER',
-        balance: 10000.00,
-        currency: 'USD',
+        balance: 75000.00,
+        currency: 'INR',
         avatarColor: 'from-blue-500 to-indigo-600',
       },
       {
-        id: 'acc_bob',
-        name: 'Bob Martinez',
-        accountNumber: 'VAULT-001043',
+        id: 'acc_priya',
+        name: 'Priya Patel',
+        vpa: 'priya@icici',
+        accountNumber: 'ICIC0001043-4412',
+        bankName: 'ICICI Bank',
         type: 'USER',
-        balance: 5000.00,
-        currency: 'USD',
+        balance: 45000.00,
+        currency: 'INR',
         avatarColor: 'from-purple-500 to-pink-600',
       },
       {
-        id: 'acc_charlie',
-        name: 'Charlie Zhang',
-        accountNumber: 'VAULT-001044',
+        id: 'acc_rohan',
+        name: 'Rohan Verma',
+        vpa: 'rohan@paytm',
+        accountNumber: 'PYTM0123456-1102',
+        bankName: 'Paytm Payments Bank',
         type: 'USER',
-        balance: 2500.00,
-        currency: 'USD',
+        balance: 20000.00,
+        currency: 'INR',
         avatarColor: 'from-amber-500 to-orange-600',
       },
       {
         id: 'acc_merchant',
-        name: 'Apex Cloud Solutions (Merchant)',
-        accountNumber: 'VAULT-990001',
+        name: 'Swiggy Instamart (Merchant)',
+        vpa: 'swiggy.pay@hdfcbank',
+        accountNumber: 'HDFC0000128-5501',
+        bankName: 'HDFC Bank',
         type: 'MERCHANT',
-        balance: 75000.00,
-        currency: 'USD',
+        balance: 550000.00,
+        currency: 'INR',
         avatarColor: 'from-emerald-500 to-teal-600',
       },
       {
         id: 'acc_treasury',
-        name: 'Reserve Central Treasury',
-        accountNumber: 'VAULT-000001',
+        name: 'NPCI / RBI Settlement Guarantee Pool',
+        vpa: 'npci.settle@rbi',
+        accountNumber: 'RBIS0000001-0001',
+        bankName: 'Reserve Bank of India',
         type: 'TREASURY',
-        balance: 1000000.00,
-        currency: 'USD',
+        balance: 10000000.00, // ₹1 Crore Pool
+        currency: 'INR',
         avatarColor: 'from-slate-600 to-zinc-800',
       },
     ];
@@ -79,18 +89,19 @@ class LedgerEngine {
       });
     });
 
-    // Seed an initial genesis ledger entry for treasury bootstrap
-    const genesisTxId = 'tx_genesis_000';
+    // Seed genesis ledger entry for RBI settlement pool bootstrap
+    const genesisTxId = 'tx_genesis_rbi_000';
     const genesisEntry: LedgerEntry = {
       id: 'led_genesis_000',
       transactionId: genesisTxId,
       accountId: 'acc_treasury',
-      accountName: 'Reserve Central Treasury',
+      accountName: 'NPCI / RBI Settlement Guarantee Pool',
+      vpa: 'npci.settle@rbi',
       type: 'CREDIT',
-      amount: 1000000.00,
-      currency: 'USD',
-      balanceAfter: 1000000.00,
-      hash: this.calculateHash('GENESIS', genesisTxId, 1000000.00, 'acc_treasury'),
+      amount: 10000000.00,
+      currency: 'INR',
+      balanceAfter: 10000000.00,
+      hash: this.calculateHash('GENESIS_RBI', genesisTxId, 10000000.00, 'acc_treasury'),
       createdAt: now,
     };
     this.ledgerEntries.push(genesisEntry);
@@ -112,10 +123,7 @@ class LedgerEngine {
         nextLockResolver = resolve;
       });
 
-      // Chain the lock
       this.accountLocks.set(id, currentLock.then(() => nextLock));
-
-      // Wait until previous lock for this row finishes
       await currentLock;
 
       releaseThisLock = () => {
@@ -128,9 +136,7 @@ class LedgerEngine {
       releaseFns.push(releaseThisLock);
     }
 
-    // Return composite unlock function
     return () => {
-      // Release in reverse order of acquisition
       for (let i = releaseFns.length - 1; i >= 0; i--) {
         releaseFns[i]();
       }
@@ -153,7 +159,7 @@ class LedgerEngine {
     idempotencyKey: string;
     description?: string;
     simulatedLatencyMs?: number;
-    bypassLocksForDemo?: boolean; // Used to demonstrate race conditions in stress tester
+    bypassLocksForDemo?: boolean;
   }): Promise<{ transaction: Transaction; replayed: boolean }> {
     const startTime = performance.now();
     const {
@@ -161,24 +167,24 @@ class LedgerEngine {
       destinationAccountId,
       amount,
       idempotencyKey,
-      description = 'Peer-to-Peer Transfer',
+      description = 'UPI P2P Transfer',
       simulatedLatencyMs = 0,
       bypassLocksForDemo = false,
     } = params;
 
     if (sourceAccountId === destinationAccountId) {
-      throw new Error('Self-transfer is disallowed: source and destination must differ');
+      throw new Error('Self-transfer is disallowed: source and destination VPA must differ');
     }
 
     if (amount <= 0 || isNaN(amount)) {
       throw new Error('Transfer amount must be strictly positive');
     }
 
-    // 1. Idempotency Check
+    // 1. Idempotency Check (NPCI RRN check)
     const existingKeyRecord = this.idempotencyStore.get(idempotencyKey);
     if (existingKeyRecord) {
       if (existingKeyRecord.status === 'IN_FLIGHT') {
-        throw new Error('Concurrent operation in progress for this Idempotency-Key. Please retry.');
+        throw new Error('UPI transaction already in progress for this RRN. Please wait.');
       }
       if (existingKeyRecord.status === 'COMPLETED' && existingKeyRecord.responsePayload) {
         return {
@@ -191,7 +197,6 @@ class LedgerEngine {
       }
     }
 
-    // Mark idempotency key as IN_FLIGHT
     this.idempotencyStore.set(idempotencyKey, {
       key: idempotencyKey,
       status: 'IN_FLIGHT',
@@ -201,32 +206,27 @@ class LedgerEngine {
     let unlockRows = () => {};
 
     try {
-      // 2. Lock rows in sorted order (unless intentionally bypassed for dirty-read demo)
       if (!bypassLocksForDemo) {
         unlockRows = await this.acquireRowLevelLocks(sourceAccountId, destinationAccountId);
       }
 
-      // 3. Optional simulated network/processing latency
       if (simulatedLatencyMs > 0) {
         await new Promise((resolve) => setTimeout(resolve, simulatedLatencyMs));
       }
 
-      // 4. Validate accounts exist
       const source = this.accounts.get(sourceAccountId);
       const destination = this.accounts.get(destinationAccountId);
 
-      if (!source) throw new Error(`Source account '${sourceAccountId}' not found`);
-      if (!destination) throw new Error(`Destination account '${destinationAccountId}' not found`);
+      if (!source) throw new Error(`Source account '${sourceAccountId}' not found in CBS`);
+      if (!destination) throw new Error(`Destination account '${destinationAccountId}' not found in CBS`);
 
-      // 5. ACID Balance Verification
       if (source.balance < amount) {
         throw new Error(
-          `Insufficient funds in ${source.name}. Required: $${amount.toFixed(2)}, Available: $${source.balance.toFixed(2)}`
+          `Insufficient funds in ${source.name} (${source.vpa}). Required: ₹${amount.toLocaleString('en-IN')}, Available: ₹${source.balance.toLocaleString('en-IN')}`
         );
       }
 
-      // 6. Double-Entry Posting
-      const txId = `tx_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+      const txId = `upi_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
       const now = new Date().toISOString();
 
       // Deduct from Source
@@ -239,7 +239,7 @@ class LedgerEngine {
 
       const prevHash = this.ledgerEntries.length > 0 
         ? this.ledgerEntries[this.ledgerEntries.length - 1].hash 
-        : 'ROOT';
+        : 'ROOT_RBI';
 
       // Entry 1: DEBIT source account
       const debitEntry: LedgerEntry = {
@@ -247,9 +247,10 @@ class LedgerEngine {
         transactionId: txId,
         accountId: source.id,
         accountName: source.name,
+        vpa: source.vpa,
         type: 'DEBIT',
         amount: amount,
-        currency: source.currency,
+        currency: 'INR',
         balanceAfter: source.balance,
         hash: this.calculateHash(prevHash, txId, amount, source.id),
         createdAt: now,
@@ -261,9 +262,10 @@ class LedgerEngine {
         transactionId: txId,
         accountId: destination.id,
         accountName: destination.name,
+        vpa: destination.vpa,
         type: 'CREDIT',
         amount: amount,
-        currency: destination.currency,
+        currency: 'INR',
         balanceAfter: destination.balance,
         hash: this.calculateHash(debitEntry.hash, txId, amount, destination.id),
         createdAt: now,
@@ -272,9 +274,8 @@ class LedgerEngine {
       this.ledgerEntries.unshift(creditEntry);
       this.ledgerEntries.unshift(debitEntry);
 
-      // Keep only recent 200 entries for in-memory display
-      if (this.ledgerEntries.length > 200) {
-        this.ledgerEntries = this.ledgerEntries.slice(0, 200);
+      if (this.ledgerEntries.length > 250) {
+        this.ledgerEntries = this.ledgerEntries.slice(0, 250);
       }
 
       const executionTime = Number((performance.now() - startTime).toFixed(2));
@@ -287,8 +288,10 @@ class LedgerEngine {
         destinationAccountId,
         sourceAccountName: source.name,
         destinationAccountName: destination.name,
+        sourceVpa: source.vpa,
+        destinationVpa: destination.vpa,
         amount,
-        currency: source.currency,
+        currency: 'INR',
         status: 'COMPLETED',
         description,
         lockAcquiredOrder: sortedLockOrder,
@@ -301,7 +304,6 @@ class LedgerEngine {
         this.transactions = this.transactions.slice(0, 100);
       }
 
-      // 7. Save Idempotency state as COMPLETED
       this.idempotencyStore.set(idempotencyKey, {
         key: idempotencyKey,
         status: 'COMPLETED',
@@ -311,17 +313,14 @@ class LedgerEngine {
 
       return { transaction, replayed: false };
     } catch (err: any) {
-      // Clear in-flight idempotency on fatal failure so client can retry with fresh state
       this.idempotencyStore.delete(idempotencyKey);
       throw err;
     } finally {
-      // Always release row locks
       unlockRows();
     }
   }
 
   // --- MATHEMATICAL INVARIANT AUDIT ENGINE ---
-  // In Double-Entry Bookkeeping: SUM(All Credits) must equal SUM(All Debits) + Genesis Credit
   public auditSystem(): InvariantAudit {
     let totalDebits = 0;
     let totalCredits = 0;
@@ -365,7 +364,6 @@ class LedgerEngine {
   }
 }
 
-// Global singleton instance across Next.js API hot-reloads
 const globalForLedger = globalThis as unknown as { ledgerEngine: LedgerEngine };
 export const ledger = globalForLedger.ledgerEngine || new LedgerEngine();
 if (process.env.NODE_ENV !== 'production') globalForLedger.ledgerEngine = ledger;

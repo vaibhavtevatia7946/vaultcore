@@ -8,7 +8,7 @@ import { TransferModal } from '../components/TransferModal';
 import { LiveLedgerStream } from '../components/LiveLedgerStream';
 import { ConcurrencyStressTester } from '../components/ConcurrencyStressTester';
 import { ArchitectureViewer } from '../components/ArchitectureViewer';
-import { ShieldCheck, Database, Zap, Layers, RefreshCw } from 'lucide-react';
+import { ShieldCheck, Database, Zap, Layers } from 'lucide-react';
 
 export default function Home() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -70,7 +70,7 @@ export default function Home() {
     return (
       <div className="min-h-screen bg-[#07080b] flex flex-col items-center justify-center space-y-3">
         <div className="w-10 h-10 border-2 border-blue-500/20 border-t-blue-500 rounded-full animate-spin" />
-        <span className="text-xs font-mono text-slate-400">Bootstrapping VaultCore Ledger Engine...</span>
+        <span className="text-xs font-mono text-slate-400">Bootstrapping VaultCore UPI Ledger Engine...</span>
       </div>
     );
   }
@@ -88,7 +88,7 @@ export default function Home() {
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         
-        {/* Hero Metrics Strip */}
+        {/* Hero Metrics Strip in Indian Rupees */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="fintech-gradient-border p-4 rounded-2xl space-y-1">
             <div className="flex items-center space-x-1.5 text-xs text-slate-400 font-medium">
@@ -96,34 +96,34 @@ export default function Home() {
               <span>Total System Liquidity</span>
             </div>
             <div className="text-xl sm:text-2xl font-bold font-mono-num text-white">
-              ${totalLiquidity.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              ₹{totalLiquidity.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
-            <span className="text-[10px] font-mono text-slate-500">Distributed across {accounts.length} wallets</span>
+            <span className="text-[10px] font-mono text-slate-500">Distributed across {accounts.length} Indian bank entities</span>
           </div>
 
           <div className="fintech-gradient-border p-4 rounded-2xl space-y-1">
             <div className="flex items-center space-x-1.5 text-xs text-slate-400 font-medium">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Audit Integrity Status</span>
+              <span>RBI / NPCI Invariant Status</span>
             </div>
             <div className="text-xl sm:text-2xl font-bold font-mono text-emerald-400 flex items-center space-x-1.5">
               <span>{audit?.isBalanced ? '100% INTACT' : 'DRIFT DETECTED'}</span>
             </div>
             <span className="text-[10px] font-mono text-slate-500">
-              Invariant delta: ${audit?.delta ?? 0}
+              Invariant delta: ₹{audit?.delta ?? 0}
             </span>
           </div>
 
           <div className="fintech-gradient-border p-4 rounded-2xl space-y-1">
             <div className="flex items-center space-x-1.5 text-xs text-slate-400 font-medium">
               <Zap className="w-3.5 h-3.5 text-amber-400" />
-              <span>Total Ledger Postings</span>
+              <span>Total UPI Postings</span>
             </div>
             <div className="text-xl sm:text-2xl font-bold font-mono-num text-white">
               {audit?.totalLedgerEntries ?? 0}
             </div>
             <span className="text-[10px] font-mono text-slate-500">
-              {audit?.totalTransactions ?? 0} completed transactions
+              {audit?.totalTransactions ?? 0} settled transactions
             </span>
           </div>
 
@@ -196,10 +196,10 @@ export default function Home() {
           <div className="flex items-center space-x-2">
             <span className="font-semibold text-slate-400">VaultCore</span>
             <span>•</span>
-            <span>High-Throughput Distributed Payment Ledger</span>
+            <span>High-Throughput UPI & Banking Ledger Engine</span>
           </div>
           <div className="font-mono text-[11px] text-slate-600">
-            Engineered for High-Concurrency FinTech Portfolios
+            Engineered for Indian Banking, NPCI Switch & UPI 2.0 Concurrency
           </div>
         </div>
       </footer>

@@ -6,14 +6,14 @@ import { Layers, ShieldCheck, Database, Cpu, Lock, CheckCircle, Copy, Terminal }
 export const ArchitectureViewer: React.FC = () => {
   const [copied, setCopied] = useState(false);
 
-  const curlExample = `curl -X POST http://localhost:3000/api/transfer \\
+  const curlExample = `curl -X POST https://vaultcore-mu.vercel.app/api/transfer \\
   -H "Content-Type: application/json" \\
-  -H "Idempotency-Key: $(uuidgen)" \\
+  -H "Idempotency-Key: RRN_$(date +%s)_$(shuf -i 100000-999999 -n 1 2>/dev/null || echo 551920)" \\
   -d '{
-    "sourceAccountId": "acc_alice",
-    "destinationAccountId": "acc_bob",
-    "amount": 250.00,
-    "description": "API Direct Payout"
+    "sourceAccountId": "acc_aarav",
+    "destinationAccountId": "acc_priya",
+    "amount": 2500.00,
+    "description": "UPI P2P Split via VaultCore"
   }'`;
 
   const copyToClipboard = () => {
@@ -28,10 +28,10 @@ export const ArchitectureViewer: React.FC = () => {
       <div className="space-y-2">
         <div className="flex items-center space-x-2">
           <Layers className="w-5 h-5 text-blue-400" />
-          <h2 className="text-lg font-bold text-white tracking-tight">System Specification & Engineering Spec</h2>
+          <h2 className="text-lg font-bold text-white tracking-tight">NPCI & UPI 2.0 Architectural Specification</h2>
         </div>
         <p className="text-xs text-slate-400 leading-relaxed">
-          VaultCore implements banking-grade architectural patterns designed to handle multi-threaded financial workflows with zero balance drift, strict idempotency, and deadlock-free row locking.
+          VaultCore models the core banking infrastructure behind modern Indian FinTech giants (PhonePe, Razorpay, Paytm, CRED). It enforces RBI-mandated double-entry auditability, NPCI RRN idempotency, and deadlock-free high-frequency settlement.
         </p>
       </div>
 
@@ -44,12 +44,12 @@ export const ArchitectureViewer: React.FC = () => {
               <Database className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-white">Double-Entry Bookkeeping</h3>
-              <span className="text-[10px] font-mono text-blue-400">Ledger Invariant Inviolability</span>
+              <h3 className="text-sm font-semibold text-white">RBI Core Banking Double-Entry</h3>
+              <span className="text-[10px] font-mono text-blue-400">Zero Balance Drift Theorem</span>
             </div>
           </div>
           <p className="text-xs text-slate-400 leading-relaxed">
-            Balances are never modified arbitrarily. For every payment, two ledger rows are written: 1 DEBIT from source, 1 CREDIT to destination. The mathematical sum across all debits and credits is provably zero: <span className="font-mono text-emerald-400 font-semibold">Σ(Debits) - Σ(Credits) = 0</span>.
+            Every UPI transaction generates two immutable ledger rows: 1 DEBIT from the payer bank and 1 CREDIT to the beneficiary bank. The fundamental banking equation is verified continuously: <span className="font-mono text-emerald-400 font-semibold">Σ(Credits) - Σ(Debits) ≡ ₹0.00</span>.
           </p>
         </div>
 
@@ -60,12 +60,12 @@ export const ArchitectureViewer: React.FC = () => {
               <Lock className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-white">Deadlock Prevention</h3>
-              <span className="text-[10px] font-mono text-purple-400">Lexicographical Resource Ordering</span>
+              <h3 className="text-sm font-semibold text-white">Deadlock-Free Resource Ordering</h3>
+              <span className="text-[10px] font-mono text-purple-400">NPCI Cross-Payment Resolution</span>
             </div>
           </div>
           <p className="text-xs text-slate-400 leading-relaxed">
-            Eliminates Coffman’s "Circular Wait" deadlock condition by sorting the involved account IDs before lock acquisition. Whether transferring Alice → Bob or Bob → Alice, both threads lock min(ID_A, ID_B) first.
+            When users transfer to each other simultaneously, circular deadlocks are prevented by sorting bank account IDs lexicographically before acquiring row locks (`min(ID_A, ID_B)` first).
           </p>
         </div>
 
@@ -76,12 +76,12 @@ export const ArchitectureViewer: React.FC = () => {
               <ShieldCheck className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-white">Distributed Idempotency</h3>
-              <span className="text-[10px] font-mono text-amber-400">At-Most-Once Execution Guarantee</span>
+              <h3 className="text-sm font-semibold text-white">NPCI RRN Idempotency Guard</h3>
+              <span className="text-[10px] font-mono text-amber-400">Zero Duplicate Debits on Network Retries</span>
             </div>
           </div>
           <p className="text-xs text-slate-400 leading-relaxed">
-            Every transaction requires an <span className="font-mono text-amber-300">Idempotency-Key</span>. In-flight requests lock the key; completed requests return the exact historical response with <span className="font-mono text-slate-300">X-Idempotent-Replay: true</span> without repeated balance debits.
+            Every UPI request passes an RRN (Retrieval Reference Number). In-flight requests lock the RRN; completed payments return the original settlement payload with <span className="font-mono text-slate-300">X-Idempotent-Replay: true</span> without repeated bank balance deductions.
           </p>
         </div>
 
@@ -93,11 +93,11 @@ export const ArchitectureViewer: React.FC = () => {
             </div>
             <div>
               <h3 className="text-sm font-semibold text-white">Audit & Tamper Resistance</h3>
-              <span className="text-[10px] font-mono text-emerald-400">SHA-256 Merkle Hash Chaining</span>
+              <span className="text-[10px] font-mono text-emerald-400">SHA-256 Merkle Chain Integrity</span>
             </div>
           </div>
           <p className="text-xs text-slate-400 leading-relaxed">
-            Every ledger posting calculates a cryptographic hash incorporating the previous entry hash, transaction ID, and balance after. Any unauthorized database tampering immediately invalidates the audit chain.
+            Every transaction writes a cryptographic hash incorporating the prior record hash, amount, and account balances. Any post-settlement database alteration immediately invalidates the entire audit chain.
           </p>
         </div>
       </div>
@@ -107,7 +107,7 @@ export const ArchitectureViewer: React.FC = () => {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2 text-xs font-semibold text-white">
             <Terminal className="w-4 h-4 text-cyan-400" />
-            <span>Direct API Invocation (cURL)</span>
+            <span>Direct API Invocation (cURL to Live Vercel Endpoint)</span>
           </div>
           <button
             onClick={copyToClipboard}

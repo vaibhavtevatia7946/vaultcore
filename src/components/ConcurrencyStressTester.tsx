@@ -14,7 +14,7 @@ export const ConcurrencyStressTester: React.FC<ConcurrencyStressTesterProps> = (
   audit,
 }) => {
   const [concurrencyCount, setConcurrencyCount] = useState<number>(40);
-  const [amountPerTransfer, setAmountPerTransfer] = useState<number>(25.00);
+  const [amountPerTransfer, setAmountPerTransfer] = useState<number>(500.00);
   const [bypassLocks, setBypassLocks] = useState<boolean>(false);
   const [isRunning, setIsRunning] = useState<boolean>(false);
   const [result, setResult] = useState<ConcurrencySimulationResult | null>(null);
@@ -59,11 +59,11 @@ export const ConcurrencyStressTester: React.FC<ConcurrencyStressTesterProps> = (
                 <Flame className="w-5 h-5" />
               </span>
               <h2 className="text-lg font-bold text-white tracking-tight">
-                High-Concurrency Race Condition & Deadlock Lab
+                High-Concurrency UPI Switch & Deadlock Lab
               </h2>
             </div>
             <p className="text-xs text-slate-400 max-w-2xl">
-              Simulate tens of simultaneous bi-directional transfers between Alice and Bob. Test how VaultCore’s lexicographical resource ordering eliminates circular wait deadlocks while guaranteeing zero balance drift.
+              Simulate tens of simultaneous cross-payments between Aarav (`aarav@oksbi`) and Priya (`priya@icici`). Test how VaultCore’s lexicographical resource ordering eliminates circular wait deadlocks while guaranteeing zero balance drift.
             </p>
           </div>
 
@@ -76,12 +76,12 @@ export const ConcurrencyStressTester: React.FC<ConcurrencyStressTesterProps> = (
               {isRunning ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  <span>Executing Parallel Workers...</span>
+                  <span>Executing Parallel UPI Workers...</span>
                 </>
               ) : (
                 <>
                   <Play className="w-4 h-4 fill-white" />
-                  <span>Fire {concurrencyCount} Concurrent Requests</span>
+                  <span>Fire {concurrencyCount} Concurrent UPI Requests</span>
                 </>
               )}
             </button>
@@ -110,13 +110,13 @@ export const ConcurrencyStressTester: React.FC<ConcurrencyStressTesterProps> = (
           <div className="p-3 rounded-xl bg-[#08090d] border border-white/5">
             <div className="flex justify-between text-xs text-slate-300 font-medium mb-1">
               <span>Transfer per Worker:</span>
-              <span className="font-mono text-purple-400 font-bold">${amountPerTransfer.toFixed(2)}</span>
+              <span className="font-mono text-purple-400 font-bold">₹{amountPerTransfer.toLocaleString('en-IN')}</span>
             </div>
             <input
               type="range"
-              min="5"
-              max="100"
-              step="5"
+              min="100"
+              max="2000"
+              step="100"
               value={amountPerTransfer}
               onChange={(e) => setAmountPerTransfer(Number(e.target.value))}
               disabled={isRunning}
@@ -158,13 +158,13 @@ export const ConcurrencyStressTester: React.FC<ConcurrencyStressTesterProps> = (
               {result.totalExecutionTimeMs} <span className="text-sm font-normal text-slate-400">ms</span>
             </div>
             <div className="text-[11px] font-mono text-slate-500">
-              Avg latency: {result.avgLatencyMs}ms / req
+              Avg latency: {result.avgLatencyMs}ms / txn
             </div>
           </div>
 
           <div className="fintech-gradient-border p-4 rounded-xl space-y-1">
             <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">
-              Settled Transfers
+              Settled UPI Transfers
             </span>
             <div className="text-2xl font-bold font-mono-num text-emerald-400">
               {result.successfulTransfers} / {result.totalRequestsSent}
@@ -189,12 +189,12 @@ export const ConcurrencyStressTester: React.FC<ConcurrencyStressTesterProps> = (
 
           <div className="fintech-gradient-border p-4 rounded-xl space-y-1">
             <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">
-              Ledger Invariant Delta
+              RBI Invariant Delta
             </span>
             <div className={`text-2xl font-bold font-mono-num flex items-center space-x-2 ${
               result.auditInvariantMaintained ? 'text-emerald-400' : 'text-rose-400'
             }`}>
-              <span>${audit?.delta ?? 0}</span>
+              <span>₹{audit?.delta ?? 0}</span>
               {result.auditInvariantMaintained ? (
                 <ShieldCheck className="w-5 h-5 text-emerald-400" />
               ) : (
@@ -212,7 +212,7 @@ export const ConcurrencyStressTester: React.FC<ConcurrencyStressTesterProps> = (
       {result && (
         <div className="fintech-gradient-border rounded-2xl p-5 space-y-3">
           <div className="flex items-center justify-between text-xs font-semibold text-white">
-            <span>Worker Thread Execution Map ({result.totalRequestsSent} Nodes)</span>
+            <span>UPI Switch Worker Map ({result.totalRequestsSent} Nodes)</span>
             <span className="font-mono text-slate-400 text-[11px]">
               Green = Atomic Commit | Red = Filtered / Locked
             </span>
@@ -224,7 +224,7 @@ export const ConcurrencyStressTester: React.FC<ConcurrencyStressTesterProps> = (
               return (
                 <div
                   key={idx}
-                  title={`Worker #${idx + 1}: ${isSuccess ? 'Committed' : 'Rejected'}`}
+                  title={`UPI Worker #${idx + 1}: ${isSuccess ? 'Committed' : 'Rejected'}`}
                   className={`h-6 rounded-md flex items-center justify-center text-[10px] font-mono font-bold transition-all ${
                     isSuccess
                       ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 shadow-[0_0_8px_rgba(16,185,129,0.3)]'
@@ -244,7 +244,7 @@ export const ConcurrencyStressTester: React.FC<ConcurrencyStressTesterProps> = (
         <div className="rounded-2xl bg-[#06070a] border border-white/10 p-4 font-mono text-xs space-y-2 shadow-2xl">
           <div className="flex items-center space-x-2 pb-2 border-b border-white/5 text-slate-400">
             <Terminal className="w-4 h-4 text-purple-400" />
-            <span className="font-semibold text-white">Worker Event Log Stream</span>
+            <span className="font-semibold text-white">NPCI Switch Event Stream</span>
             <span className="text-[10px] text-slate-600">stdout</span>
           </div>
           <div className="space-y-1 max-h-48 overflow-y-auto pr-2 text-slate-300">

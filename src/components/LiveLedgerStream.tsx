@@ -19,6 +19,7 @@ export const LiveLedgerStream: React.FC<LiveLedgerStreamProps> = ({
   const filteredEntries = entries.filter((entry) => {
     const matchesSearch =
       entry.accountName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (entry.vpa && entry.vpa.toLowerCase().includes(searchTerm.toLowerCase())) ||
       entry.transactionId.toLowerCase().includes(searchTerm.toLowerCase()) ||
       entry.id.toLowerCase().includes(searchTerm.toLowerCase());
 
@@ -28,11 +29,12 @@ export const LiveLedgerStream: React.FC<LiveLedgerStreamProps> = ({
   });
 
   const exportCSV = () => {
-    const headers = ['Entry ID', 'Transaction ID', 'Account Name', 'Type', 'Amount', 'Balance After', 'SHA256 Hash', 'Timestamp'];
+    const headers = ['Entry ID', 'UPI Transaction ID', 'Account Name', 'UPI VPA', 'Type', 'Amount (INR)', 'Balance After (INR)', 'SHA256 Hash', 'Timestamp'];
     const rows = entries.map((e) => [
       e.id,
       e.transactionId,
       `"${e.accountName}"`,
+      `"${e.vpa || ''}"`,
       e.type,
       e.amount.toFixed(2),
       e.balanceAfter.toFixed(2),
@@ -44,7 +46,7 @@ export const LiveLedgerStream: React.FC<LiveLedgerStreamProps> = ({
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `vaultcore_ledger_export_${Date.now()}.csv`);
+    link.setAttribute('download', `vaultcore_upi_ledger_export_${Date.now()}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -58,11 +60,11 @@ export const LiveLedgerStream: React.FC<LiveLedgerStreamProps> = ({
           <div className="flex items-center space-x-2">
             <BookOpen className="w-4 h-4 text-emerald-400" />
             <h2 className="text-sm font-semibold text-white tracking-tight">
-              Immutable Double-Entry Ledger Stream
+              Immutable Double-Entry Ledger Stream (CBS / RBI Audit)
             </h2>
           </div>
           <p className="text-xs text-slate-400">
-            Real-time audit log: 1 Debit (Red) + 1 Credit (Green). SHA-256 Merkle chain verified.
+            Real-time audit log: 1 Payer Debit (Red) + 1 Payee Credit (Green). SHA-256 Merkle chain verified.
           </p>
         </div>
 
@@ -80,11 +82,11 @@ export const LiveLedgerStream: React.FC<LiveLedgerStreamProps> = ({
 
       {/* Filter and Search Bar */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-2 p-2 rounded-xl bg-[#090b10] border border-white/5">
-        <div className="relative w-full sm:w-64">
+        <div className="relative w-full sm:w-72">
           <Search className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
-            placeholder="Search account or Tx ID..."
+            placeholder="Search VPA (e.g. aarav@oksbi) or Txn..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full bg-[#0d1017] border border-white/5 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-blue-500/50 font-mono"
@@ -119,13 +121,13 @@ export const LiveLedgerStream: React.FC<LiveLedgerStreamProps> = ({
           <table className="w-full text-left text-xs">
             <thead className="bg-[#090b10] border-b border-white/5 text-[11px] font-medium text-slate-400 uppercase tracking-wider sticky top-0 z-10 backdrop-blur-md">
               <tr>
-                <th className="py-3 px-4">Time</th>
-                <th className="py-3 px-4">Tx ID</th>
-                <th className="py-3 px-4">Account</th>
+                <th className="py-3 px-4">Time (IST)</th>
+                <th className="py-3 px-4">UPI Txn ID</th>
+                <th className="py-3 px-4">Account & VPA</th>
                 <th className="py-3 px-4">Type</th>
-                <th className="py-3 px-4 text-right">Amount</th>
-                <th className="py-3 px-4 text-right">Balance After</th>
-                <th className="py-3 px-4 font-mono">Hash Verification</th>
+                <th className="py-3 px-4 text-right">Amount (₹)</th>
+                <th className="py-3 px-4 text-right">Balance After (₹)</th>
+                <th className="py-3 px-4 font-mono">Merkle Hash</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5 font-mono">
@@ -139,17 +141,20 @@ export const LiveLedgerStream: React.FC<LiveLedgerStreamProps> = ({
                   >
                     {/* Timestamp */}
                     <td className="py-3 px-4 text-slate-400 text-[11px]">
-                      {new Date(entry.createdAt).toLocaleTimeString()}
+                      {new Date(entry.createdAt).toLocaleTimeString('en-IN')}
                     </td>
 
                     {/* Tx ID */}
                     <td className="py-3 px-4 text-slate-300 font-semibold">
-                      {entry.transactionId.replace('tx_', '')}
+                      {entry.transactionId.replace('upi_', '')}
                     </td>
 
-                    {/* Account */}
-                    <td className="py-3 px-4 text-white font-sans font-medium">
-                      {entry.accountName}
+                    {/* Account & VPA */}
+                    <td className="py-3 px-4 text-white font-sans">
+                      <div className="font-medium">{entry.accountName}</div>
+                      {entry.vpa && (
+                        <div className="text-[10px] font-mono text-cyan-400 opacity-80">{entry.vpa}</div>
+                      )}
                     </td>
 
                     {/* Type Badge */}
@@ -171,12 +176,12 @@ export const LiveLedgerStream: React.FC<LiveLedgerStreamProps> = ({
                     <td className={`py-3 px-4 text-right font-bold font-mono-num ${
                       isDebit ? 'text-rose-400' : 'text-emerald-400'
                     }`}>
-                      {isDebit ? '-' : '+'}${entry.amount.toFixed(2)}
+                      {isDebit ? '-' : '+'}₹{entry.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                     </td>
 
                     {/* Balance After */}
                     <td className="py-3 px-4 text-right text-slate-300 font-mono-num">
-                      ${entry.balanceAfter.toLocaleString('en-US', {
+                      ₹{entry.balanceAfter.toLocaleString('en-IN', {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2,
                       })}
@@ -195,7 +200,7 @@ export const LiveLedgerStream: React.FC<LiveLedgerStreamProps> = ({
               {filteredEntries.length === 0 && (
                 <tr>
                   <td colSpan={7} className="py-8 text-center text-slate-500">
-                    No matching ledger entries found.
+                    No matching UPI ledger entries recorded.
                   </td>
                 </tr>
               )}
