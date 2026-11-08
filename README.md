@@ -1,12 +1,20 @@
 # VaultCore: High-Throughput Distributed Payment Ledger & Concurrency Engine
 
+[![Live Demo](https://img.shields.io/badge/Demo-vaultcore--mu.vercel.app-blue?style=for-the-badge&logo=vercel)](https://vaultcore-mu.vercel.app)
+[![GitHub](https://img.shields.io/badge/GitHub-vaibhavtevatia7946%2Fvaultcore-181717?style=for-the-badge&logo=github)](https://github.com/vaibhavtevatia7946/vaultcore)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue.svg)](https://www.typescriptlang.org/)
-[![Next.js](https://img.shields.io/badge/Next.js-15.1-black.svg)](https://nextjs.org/)
+[![Next.js](https://img.shields.io/badge/Next.js-15.3-black.svg)](https://nextjs.org/)
 [![PostgreSQL](https://img.shields.io/badge/ACID-Serializable-336791.svg)](https://www.postgresql.org/)
 [![Audit Status](https://img.shields.io/badge/Invariant_Audit-100%25_Verified-10B981.svg)]()
 
-> A production-grade double-entry financial ledger and concurrency engine engineered to solve race conditions, duplicate debits, and distributed deadlocks in high-throughput payment systems.
+> A production-grade double-entry financial ledger and concurrency engine engineered to eliminate race conditions, duplicate debits, and distributed deadlocks in high-throughput payment systems.
+
+---
+
+## 🌐 Live Deployment
+* 🚀 **Production URL:** [https://vaultcore-mu.vercel.app](https://vaultcore-mu.vercel.app)
+* 🐙 **GitHub Repository:** [https://github.com/vaibhavtevatia7946/vaultcore](https://github.com/vaibhavtevatia7946/vaultcore)
 
 ---
 
@@ -60,7 +68,7 @@
 ## ⚡ Core Computer Science & Engineering Principles
 
 ### 1. Inviolable Double-Entry Bookkeeping
-Traditional naive e-commerce and fintech projects naively run:
+Traditional naive e-commerce and fintech projects run:
 ```sql
 -- DANGEROUS: No audit trail, prone to data loss
 UPDATE accounts SET balance = balance - 100 WHERE id = 'alice';
@@ -95,12 +103,17 @@ Every incoming write request requires an `Idempotency-Key` header:
 
 ### 1. Clone & Install
 ```bash
-git clone https://github.com/your-username/vaultcore.git
+git clone https://github.com/vaibhavtevatia7946/vaultcore.git
 cd vaultcore
 npm install
 ```
 
-### 2. Run the Development Server
+### 2. Run the Automated Test Suite
+```bash
+npm test
+```
+
+### 3. Run the Development Server
 ```bash
 npm run dev
 # or for production build
@@ -146,18 +159,6 @@ Idempotency-Key: 7b31e13a-a10c-4df4-8d14-3c6a46dc17f0
     "delta": 0,
     "systemIntegrityStatus": "VERIFIED"
   }
-}
-```
-
-### 2. High-Concurrency Stress Test API
-```http
-POST /api/simulate
-Content-Type: application/json
-
-{
-  "concurrencyCount": 50,
-  "amountPerTransfer": 25.00,
-  "bypassLocks": false
 }
 ```
 
