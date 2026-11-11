@@ -9,9 +9,10 @@ import { LiveLedgerStream } from '../components/LiveLedgerStream';
 import { ConcurrencyStressTester } from '../components/ConcurrencyStressTester';
 import { ArchitectureViewer } from '../components/ArchitectureViewer';
 import { MerkleChainExplorer } from '../components/MerkleChainExplorer';
-import { ShieldCheck, Database, Zap, Layers, Lock, ShieldAlert } from 'lucide-react';
+import { ShieldCheck, Database, Zap, Layers, AlertCircle } from 'lucide-react';
 
 export default function Home() {
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [ledgerEntries, setLedgerEntries] = useState<LedgerEntry[]>([]);
@@ -23,6 +24,29 @@ export default function Home() {
 
   const [selectedSourceId, setSelectedSourceId] = useState<string>('');
   const [selectedDestId, setSelectedDestId] = useState<string>('');
+
+  useEffect(() => {
+    try {
+      const isDark = document.documentElement.classList.contains('dark');
+      setTheme(isDark ? 'dark' : 'light');
+    } catch (_) {}
+  }, []);
+
+  const handleToggleTheme = () => {
+    const nextTheme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(nextTheme);
+    if (nextTheme === 'dark') {
+      document.documentElement.classList.add('dark');
+      try {
+        localStorage.setItem('vaultcore-theme', 'dark');
+      } catch (_) {}
+    } else {
+      document.documentElement.classList.remove('dark');
+      try {
+        localStorage.setItem('vaultcore-theme', 'light');
+      } catch (_) {}
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -68,94 +92,90 @@ export default function Home() {
   };
 
   const totalLiquidity = accounts.reduce((acc, a) => acc + a.balance, 0);
-  const totalHeldFunds = accounts.reduce((acc, a) => acc + (a.heldBalance || 0), 0);
+  const totalHeld = accounts.reduce((acc, a) => acc + (a.heldBalance || 0), 0);
+  const isHealthy = audit?.isBalanced && audit?.isChainValid !== false;
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#07080b] flex flex-col items-center justify-center space-y-3">
-        <div className="w-10 h-10 border-2 border-blue-500/20 border-t-blue-500 rounded-full animate-spin" />
-        <span className="text-xs font-mono text-slate-400">Bootstrapping VaultCore UPI Ledger Engine...</span>
+      <div className="min-h-screen bg-slate-50 dark:bg-[#09090b] flex flex-col items-center justify-center space-y-2">
+        <div className="w-6 h-6 border-2 border-slate-300 dark:border-zinc-700 border-t-blue-600 rounded-full animate-spin" />
+        <span className="text-xs font-mono text-slate-500 dark:text-zinc-400">Loading ledger state...</span>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#07080b] text-slate-100 flex flex-col">
-      {/* Top Navigation */}
+    <div className="min-h-screen bg-slate-50 dark:bg-[#09090b] text-slate-900 dark:text-zinc-100 flex flex-col font-sans transition-colors duration-200">
+      {/* Top Navbar */}
       <Navbar
         audit={audit}
         onReset={handleReset}
         isResetting={isResetting}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
+        theme={theme}
+        onToggleTheme={handleToggleTheme}
       />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-        {/* Hero Metrics Strip in Indian Rupees */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="fintech-gradient-border p-4 rounded-2xl space-y-1">
-            <div className="flex items-center space-x-1.5 text-xs text-slate-400 font-medium">
-              <Database className="w-3.5 h-3.5 text-blue-400" />
-              <span>Total System Liquidity</span>
-            </div>
-            <div className="text-xl sm:text-2xl font-bold font-mono-num text-white">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+        {/* Crisp Metrics Strip */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="fintech-card p-3.5 space-y-1">
+            <span className="text-[11px] font-medium text-slate-500 dark:text-zinc-400">
+              Total Liquidity
+            </span>
+            <div className="text-xl font-bold font-mono-num text-slate-900 dark:text-zinc-100">
               ₹{totalLiquidity.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
-            <span className="text-[10px] font-mono text-slate-500">
-              Distributed across {accounts.length} Indian bank entities
+            <span className="text-[10px] text-slate-400 dark:text-zinc-500 font-mono">
+              Across {accounts.length} core entities
             </span>
           </div>
 
-          <div className="fintech-gradient-border p-4 rounded-2xl space-y-1">
-            <div className="flex items-center space-x-1.5 text-xs text-slate-400 font-medium">
-              {audit?.isBalanced && audit?.isChainValid !== false ? (
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-              ) : (
-                <ShieldAlert className="w-3.5 h-3.5 text-rose-400 animate-pulse" />
-              )}
-              <span>RBI / NPCI Invariant Status</span>
-            </div>
+          <div className="fintech-card p-3.5 space-y-1">
+            <span className="text-[11px] font-medium text-slate-500 dark:text-zinc-400">
+              Audit Invariance
+            </span>
             <div
-              className={`text-xl sm:text-2xl font-bold font-mono flex items-center space-x-1.5 ${
-                audit?.isBalanced && audit?.isChainValid !== false ? 'text-emerald-400' : 'text-rose-400'
+              className={`text-xl font-bold font-mono flex items-center space-x-1.5 ${
+                isHealthy ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600'
               }`}
             >
-              <span>{audit?.isBalanced && audit?.isChainValid !== false ? '100% INTACT' : 'DRIFT DETECTED'}</span>
+              <span>{isHealthy ? 'Balanced' : 'Drift Alert'}</span>
             </div>
-            <span className="text-[10px] font-mono text-slate-500">
-              Invariant delta: ₹{audit?.delta ?? 0} {totalHeldFunds > 0 ? `(₹${totalHeldFunds} Held in 2PC)` : ''}
+            <span className="text-[10px] text-slate-400 dark:text-zinc-500 font-mono">
+              Delta: ₹{audit?.delta ?? 0} {totalHeld > 0 ? `(₹${totalHeld} held)` : ''}
             </span>
           </div>
 
-          <div className="fintech-gradient-border p-4 rounded-2xl space-y-1">
-            <div className="flex items-center space-x-1.5 text-xs text-slate-400 font-medium">
-              <Zap className="w-3.5 h-3.5 text-amber-400" />
-              <span>Total UPI Postings</span>
-            </div>
-            <div className="text-xl sm:text-2xl font-bold font-mono-num text-white">
+          <div className="fintech-card p-3.5 space-y-1">
+            <span className="text-[11px] font-medium text-slate-500 dark:text-zinc-400">
+              Ledger Postings
+            </span>
+            <div className="text-xl font-bold font-mono-num text-slate-900 dark:text-zinc-100">
               {audit?.totalLedgerEntries ?? 0}
             </div>
-            <span className="text-[10px] font-mono text-slate-500">
+            <span className="text-[10px] text-slate-400 dark:text-zinc-500 font-mono">
               {audit?.totalTransactions ?? 0} settled transactions
             </span>
           </div>
 
-          <div className="fintech-gradient-border p-4 rounded-2xl space-y-1">
-            <div className="flex items-center space-x-1.5 text-xs text-slate-400 font-medium">
-              <Layers className="w-3.5 h-3.5 text-purple-400" />
-              <span>Isolation & Locks</span>
-            </div>
-            <div className="text-xl sm:text-2xl font-bold font-mono text-purple-400">
+          <div className="fintech-card p-3.5 space-y-1">
+            <span className="text-[11px] font-medium text-slate-500 dark:text-zinc-400">
+              Transaction Isolation
+            </span>
+            <div className="text-xl font-bold font-mono text-blue-600 dark:text-blue-400">
               SERIALIZABLE
             </div>
-            <span className="text-[10px] font-mono text-slate-500">Deadlock-free resource ordering</span>
+            <span className="text-[10px] text-slate-400 dark:text-zinc-500 font-mono">
+              Ordered row locks
+            </span>
           </div>
         </div>
 
-        {/* Tab 1: Dashboard View */}
+        {/* Tab 1: Accounts Dashboard */}
         {activeTab === 'dashboard' && (
-          <div className="space-y-8 animate-fade-in">
-            {/* Top Section: Wallets Grid */}
+          <div className="space-y-6">
             <WalletCards
               accounts={accounts}
               onSelectTransfer={handleSelectTransfer}
@@ -163,8 +183,7 @@ export default function Home() {
               onRefresh={fetchData}
             />
 
-            {/* Middle Section: Transfer Console + Live Ledger Stream */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
               <div className="lg:col-span-5">
                 <TransferModal
                   accounts={accounts}
@@ -191,44 +210,36 @@ export default function Home() {
 
         {/* Tab 2: Concurrency Stress Tester */}
         {activeTab === 'stress-test' && (
-          <div className="animate-fade-in">
-            <ConcurrencyStressTester
-              onSimulationFinished={fetchData}
-              audit={audit}
-              accounts={accounts}
-            />
-          </div>
+          <ConcurrencyStressTester
+            onSimulationFinished={fetchData}
+            audit={audit}
+            accounts={accounts}
+          />
         )}
 
         {/* Tab 3: Merkle Blockchain Explorer */}
         {activeTab === 'blockchain' && (
-          <div className="animate-fade-in">
-            <MerkleChainExplorer
-              entries={ledgerEntries}
-              audit={audit}
-              onRefresh={fetchData}
-            />
-          </div>
+          <MerkleChainExplorer
+            entries={ledgerEntries}
+            audit={audit}
+            onRefresh={fetchData}
+          />
         )}
 
-        {/* Tab 4: Architecture & System Spec */}
-        {activeTab === 'architecture' && (
-          <div className="animate-fade-in">
-            <ArchitectureViewer />
-          </div>
-        )}
+        {/* Tab 4: Architecture & Spec */}
+        {activeTab === 'architecture' && <ArchitectureViewer />}
       </main>
 
-      {/* Footer */}
-      <footer className="mt-auto border-t border-white/5 py-6 bg-[#07080b]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 space-y-2 sm:space-y-0">
+      {/* Minimal Footer */}
+      <footer className="mt-auto border-t border-slate-200 dark:border-zinc-800 py-4 bg-white dark:bg-[#09090b] text-xs text-slate-500 dark:text-zinc-500">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2">
           <div className="flex items-center space-x-2">
-            <span className="font-semibold text-slate-400">VaultCore</span>
+            <span className="font-semibold text-slate-700 dark:text-zinc-300">VaultCore</span>
             <span>•</span>
-            <span>High-Throughput UPI & Banking Ledger Engine v2.0</span>
+            <span>ACID Core Banking Concurrency Engine</span>
           </div>
-          <div className="font-mono text-[11px] text-slate-600">
-            Engineered for Indian Banking, NPCI Switch & UPI 2.0 Concurrency
+          <div className="font-mono text-[11px] text-slate-400 dark:text-zinc-500">
+            Dijkstra Resource Ordering • NPCI RRN Idempotency • SHA-256 Merkle Chain
           </div>
         </div>
       </footer>

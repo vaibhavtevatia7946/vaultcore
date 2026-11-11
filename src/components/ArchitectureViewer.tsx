@@ -23,111 +23,129 @@ export const ArchitectureViewer: React.FC = () => {
   };
 
   return (
-    <div className="space-y-8 max-w-5xl mx-auto">
+    <div className="space-y-6 max-w-5xl mx-auto">
       {/* Intro Heading */}
-      <div className="space-y-2">
+      <div className="space-y-1">
         <div className="flex items-center space-x-2">
-          <Layers className="w-5 h-5 text-blue-400" />
-          <h2 className="text-lg font-bold text-white tracking-tight">NPCI & UPI 2.0 Architectural Specification</h2>
+          <Layers className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+          <h3 className="text-base font-semibold text-slate-900 dark:text-zinc-100 tracking-tight">
+            Banking Architecture & Technical Specification
+          </h3>
         </div>
-        <p className="text-xs text-slate-400 leading-relaxed">
-          VaultCore models the core banking infrastructure behind modern Indian FinTech giants (PhonePe, Razorpay, Paytm, CRED). It enforces RBI-mandated double-entry auditability, NPCI RRN idempotency, and deadlock-free high-frequency settlement.
+        <p className="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed max-w-3xl">
+          VaultCore models the core banking infrastructure behind modern payment platforms (Stripe, Razorpay, PhonePe). It enforces RBI-mandated double-entry auditability, NPCI RRN idempotency, and deadlock-free settlement.
         </p>
       </div>
 
       {/* The 4 Core Pillars */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {/* Pillar 1 */}
-        <div className="fintech-gradient-border rounded-2xl p-5 space-y-3">
-          <div className="flex items-center space-x-3">
-            <div className="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/20 flex items-center justify-center">
-              <Database className="w-5 h-5" />
+        <div className="fintech-card p-4 space-y-2">
+          <div className="flex items-center space-x-2.5">
+            <div className="w-8 h-8 rounded-md bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+              <Database className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-white">RBI Core Banking Double-Entry</h3>
-              <span className="text-[10px] font-mono text-blue-400">Zero Balance Drift Theorem</span>
+              <h4 className="text-xs font-semibold text-slate-900 dark:text-zinc-100">
+                Core Banking Double-Entry
+              </h4>
+              <span className="text-[10px] font-mono text-blue-600 dark:text-blue-400">
+                Invariable Balance Theorem
+              </span>
             </div>
           </div>
-          <p className="text-xs text-slate-400 leading-relaxed">
-            Every UPI transaction generates two immutable ledger rows: 1 DEBIT from the payer bank and 1 CREDIT to the beneficiary bank. The fundamental banking equation is verified continuously: <span className="font-mono text-emerald-400 font-semibold">Σ(Credits) - Σ(Debits) ≡ ₹0.00</span>.
+          <p className="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">
+            Every transaction writes two immutable records: 1 DEBIT to the payer and 1 CREDIT to the payee. The balance equation is continuously verified: <span className="font-mono font-medium text-emerald-600 dark:text-emerald-400">Σ(Credits) - Σ(Debits) ≡ ₹0.00</span>.
           </p>
         </div>
 
         {/* Pillar 2 */}
-        <div className="fintech-gradient-border rounded-2xl p-5 space-y-3">
-          <div className="flex items-center space-x-3">
-            <div className="w-9 h-9 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20 flex items-center justify-center">
-              <Lock className="w-5 h-5" />
+        <div className="fintech-card p-4 space-y-2">
+          <div className="flex items-center space-x-2.5">
+            <div className="w-8 h-8 rounded-md bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+              <Lock className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-white">Deadlock-Free Resource Ordering</h3>
-              <span className="text-[10px] font-mono text-purple-400">NPCI Cross-Payment Resolution</span>
+              <h4 className="text-xs font-semibold text-slate-900 dark:text-zinc-100">
+                Deadlock-Free Resource Ordering
+              </h4>
+              <span className="text-[10px] font-mono text-purple-600 dark:text-purple-400">
+                Dijkstra Coffman Resolution
+              </span>
             </div>
           </div>
-          <p className="text-xs text-slate-400 leading-relaxed">
-            When users transfer to each other simultaneously, circular deadlocks are prevented by sorting bank account IDs lexicographically before acquiring row locks (`min(ID_A, ID_B)` first).
+          <p className="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">
+            When users transfer to each other simultaneously, circular wait deadlocks are eliminated by sorting account IDs lexicographically before acquiring locks (`min(ID_A, ID_B)` first).
           </p>
         </div>
 
         {/* Pillar 3 */}
-        <div className="fintech-gradient-border rounded-2xl p-5 space-y-3">
-          <div className="flex items-center space-x-3">
-            <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center justify-center">
-              <ShieldCheck className="w-5 h-5" />
+        <div className="fintech-card p-4 space-y-2">
+          <div className="flex items-center space-x-2.5">
+            <div className="w-8 h-8 rounded-md bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+              <ShieldCheck className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-white">NPCI RRN Idempotency Guard</h3>
-              <span className="text-[10px] font-mono text-amber-400">Zero Duplicate Debits on Network Retries</span>
+              <h4 className="text-xs font-semibold text-slate-900 dark:text-zinc-100">
+                NPCI RRN Idempotency Guard
+              </h4>
+              <span className="text-[10px] font-mono text-amber-600 dark:text-amber-400">
+                Zero Duplicate Debits on Network Retries
+              </span>
             </div>
           </div>
-          <p className="text-xs text-slate-400 leading-relaxed">
-            Every UPI request passes an RRN (Retrieval Reference Number). In-flight requests lock the RRN; completed payments return the original settlement payload with <span className="font-mono text-slate-300">X-Idempotent-Replay: true</span> without repeated bank balance deductions.
+          <p className="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">
+            Every write request requires a unique idempotency key. In-flight requests lock the key; completed payments return the cached payload without secondary ledger debits.
           </p>
         </div>
 
         {/* Pillar 4 */}
-        <div className="fintech-gradient-border rounded-2xl p-5 space-y-3">
-          <div className="flex items-center space-x-3">
-            <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center">
-              <Cpu className="w-5 h-5" />
+        <div className="fintech-card p-4 space-y-2">
+          <div className="flex items-center space-x-2.5">
+            <div className="w-8 h-8 rounded-md bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+              <Cpu className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-white">Audit & Tamper Resistance</h3>
-              <span className="text-[10px] font-mono text-emerald-400">SHA-256 Merkle Chain Integrity</span>
+              <h4 className="text-xs font-semibold text-slate-900 dark:text-zinc-100">
+                SHA-256 Merkle Chain
+              </h4>
+              <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400">
+                Cryptographic Tamper-Evidence
+              </span>
             </div>
           </div>
-          <p className="text-xs text-slate-400 leading-relaxed">
-            Every transaction writes a cryptographic hash incorporating the prior record hash, amount, and account balances. Any post-settlement database alteration immediately invalidates the entire audit chain.
+          <p className="text-xs text-slate-500 dark:text-zinc-400 leading-relaxed">
+            Each entry computes a hash over prior block hash, transaction ID, amounts, and timestamps. Any manual DB modification breaks the cryptographic link downstream.
           </p>
         </div>
       </div>
 
-      {/* Terminal cURL Tester Box */}
-      <div className="rounded-2xl bg-[#06070a] border border-white/10 p-5 space-y-3 shadow-2xl">
+      {/* Curl Snippet Section */}
+      <div className="fintech-card p-4 space-y-3">
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2 text-xs font-semibold text-white">
-            <Terminal className="w-4 h-4 text-cyan-400" />
-            <span>Direct API Invocation (cURL to Live Vercel Endpoint)</span>
+          <div className="flex items-center space-x-2 text-xs font-semibold text-slate-900 dark:text-zinc-100">
+            <Terminal className="w-4 h-4 text-slate-500" />
+            <span>Production CLI Transfer Request</span>
           </div>
           <button
             onClick={copyToClipboard}
-            className="flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/5 text-[11px] font-mono text-slate-300 transition-colors"
+            className="flex items-center space-x-1 px-2.5 py-1 rounded bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 text-xs font-medium hover:bg-slate-200 dark:hover:bg-zinc-700 transition-colors"
           >
             {copied ? (
               <>
-                <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
-                <span className="text-emerald-400">Copied</span>
+                <CheckCircle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span>Copied</span>
               </>
             ) : (
               <>
                 <Copy className="w-3.5 h-3.5" />
-                <span>Copy</span>
+                <span>Copy cURL</span>
               </>
             )}
           </button>
         </div>
 
-        <pre className="p-3.5 rounded-xl bg-[#090b10] border border-white/5 font-mono text-xs text-cyan-300 overflow-x-auto leading-relaxed">
+        <pre className="p-3 bg-slate-900 text-slate-100 rounded-lg text-xs font-mono overflow-x-auto leading-relaxed">
           {curlExample}
         </pre>
       </div>

@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { Account } from '@/lib/types';
-import { QrCode, X, CheckCircle2, Volume2, ArrowRight, ShieldCheck, Zap } from 'lucide-react';
+import { QrCode, X, Volume2, Zap } from 'lucide-react';
 
 interface UpiQrModalProps {
   account: Account;
@@ -28,22 +28,16 @@ export const UpiQrModal: React.FC<UpiQrModalProps> = ({
 
   if (!isOpen) return null;
 
-  const payerAccount = allAccounts.find((a) => a.id === payerId);
-
   const playSoundboxVoice = (receivedAmount: number, payeeName: string) => {
-    const text = `VaultCore Soundbox: ${receivedAmount} rupees received for ${payeeName}`;
-    setSoundboxAlert(`🔔 ${payeeName} received ₹${receivedAmount.toLocaleString('en-IN')} via VaultCore UPI Engine!`);
+    const text = `VaultCore: ${receivedAmount} rupees received for ${payeeName}`;
+    setSoundboxAlert(`Received ₹${receivedAmount.toLocaleString('en-IN')} via UPI transfer.`);
 
-    // Use browser Web Speech API for voice announcement if supported
     if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
       try {
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.rate = 1.0;
-        utterance.pitch = 1.1;
         window.speechSynthesis.speak(utterance);
-      } catch (e) {
-        // Fallback gracefully if speech blocked
-      }
+      } catch (e) {}
     }
   };
 
@@ -65,7 +59,7 @@ export const UpiQrModal: React.FC<UpiQrModalProps> = ({
           sourceAccountId: payerId,
           destinationAccountId: account.id,
           amount: parseFloat(amount),
-          description: `UPI QR Scan & Pay (${account.name})`,
+          description: `QR Payment to ${account.name}`,
         }),
       });
 
@@ -84,84 +78,75 @@ export const UpiQrModal: React.FC<UpiQrModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
-      <div className="relative w-full max-w-md rounded-3xl bg-[#090b10] border border-white/10 p-6 shadow-2xl space-y-5 fintech-gradient-border">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+      <div className="fintech-card max-w-sm w-full p-5 space-y-4 relative bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800">
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-5 right-5 p-1.5 rounded-full bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+          className="absolute top-4 right-4 p-1 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200"
         >
           <X className="w-4 h-4" />
         </button>
 
-        {/* Modal Header */}
+        {/* Header */}
         <div className="text-center space-y-1">
-          <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] font-mono font-semibold">
-            <QrCode className="w-3.5 h-3.5" />
-            <span>BHIM UPI 2.0 DYNAMIC QR</span>
+          <div className="text-xs font-semibold text-slate-900 dark:text-zinc-100">
+            {account.name}
           </div>
-          <h3 className="text-lg font-bold text-white tracking-tight">{account.name}</h3>
-          <p className="text-xs font-mono text-cyan-400">{account.vpa}</p>
-          <p className="text-[11px] text-slate-400">{account.bankName} • {account.accountNumber}</p>
+          <div className="text-xs font-mono text-blue-600 dark:text-blue-400">
+            {account.vpa}
+          </div>
+          <div className="text-[11px] text-slate-400 dark:text-zinc-500">
+            {account.bankName} • {account.accountNumber}
+          </div>
         </div>
 
-        {/* QR Code Graphic Frame */}
-        <div className="flex justify-center">
-          <div className="relative p-5 rounded-2xl bg-white text-black shadow-xl flex flex-col items-center space-y-2">
-            {/* Simulated UPI QR Matrix */}
-            <div className="w-44 h-44 bg-slate-900 rounded-xl p-3 flex flex-col items-center justify-between relative overflow-hidden">
+        {/* QR Code Container */}
+        <div className="flex justify-center my-2">
+          <div className="p-4 rounded-xl bg-white text-black border border-slate-200 flex flex-col items-center space-y-2 shadow-sm">
+            <div className="w-40 h-40 bg-zinc-900 rounded-lg p-2.5 flex flex-col items-center justify-between">
               <div className="w-full flex justify-between">
-                <div className="w-10 h-10 border-4 border-cyan-400 bg-white flex items-center justify-center">
-                  <div className="w-4 h-4 bg-slate-900" />
-                </div>
-                <div className="w-10 h-10 border-4 border-cyan-400 bg-white flex items-center justify-center">
-                  <div className="w-4 h-4 bg-slate-900" />
-                </div>
+                <div className="w-8 h-8 border-4 border-white bg-zinc-900" />
+                <div className="w-8 h-8 border-4 border-white bg-zinc-900" />
               </div>
-
-              {/* Center Logo */}
-              <div className="w-10 h-10 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold text-xs shadow-md border-2 border-white">
+              <div className="w-8 h-8 rounded bg-blue-600 flex items-center justify-center text-white text-[10px] font-bold">
                 UPI
               </div>
-
               <div className="w-full flex justify-between">
-                <div className="w-10 h-10 border-4 border-cyan-400 bg-white flex items-center justify-center">
-                  <div className="w-4 h-4 bg-slate-900" />
-                </div>
-                <div className="text-[9px] font-mono font-bold text-white tracking-tighter self-end">
+                <div className="w-8 h-8 border-4 border-white bg-zinc-900" />
+                <div className="text-[10px] font-mono text-white font-medium self-end">
                   ₹{Number(amount || 0).toLocaleString('en-IN')}
                 </div>
               </div>
             </div>
-
-            <span className="text-[10px] font-mono font-bold text-slate-800 tracking-wider">
-              SCAN WITH ANY UPI APP
+            <span className="text-[10px] font-mono font-medium text-slate-600">
+              SCAN TO PAY VIA UPI
             </span>
           </div>
         </div>
 
-        {/* Soundbox Voice Alert Banner */}
+        {/* Soundbox Voice Feedback */}
         {soundboxAlert && (
-          <div className="p-3 rounded-xl bg-gradient-to-r from-emerald-950/60 to-teal-950/60 border border-emerald-500/40 text-emerald-300 text-xs flex items-center space-x-2.5 animate-bounce">
-            <Volume2 className="w-5 h-5 text-emerald-400 shrink-0" />
-            <div className="font-sans font-medium">{soundboxAlert}</div>
+          <div className="p-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/40 text-emerald-800 dark:text-emerald-300 text-xs flex items-center space-x-2">
+            <Volume2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span>{soundboxAlert}</span>
           </div>
         )}
 
-        {/* Quick Amount Presets */}
-        <div className="space-y-1.5">
-          <label className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">
-            Enter Amount or Choose Preset:
+        {/* Quick Presets */}
+        <div className="space-y-1">
+          <label className="text-[11px] font-medium text-slate-600 dark:text-zinc-400">
+            Select Amount
           </label>
-          <div className="grid grid-cols-4 gap-2">
-            {['100', '500', '1200', '2500'].map((preset) => (
+          <div className="grid grid-cols-4 gap-1.5">
+            {['200', '500', '1200', '2500'].map((preset) => (
               <button
                 key={preset}
                 onClick={() => setAmount(preset)}
-                className={`py-1.5 rounded-lg text-xs font-mono font-semibold transition-all ${
+                className={`py-1 rounded text-xs font-mono transition-colors ${
                   amount === preset
-                    ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
-                    : 'bg-white/5 text-slate-300 hover:bg-white/10 border border-white/5'
+                    ? 'bg-blue-600 text-white font-semibold'
+                    : 'bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-700'
                 }`}
               >
                 ₹{preset}
@@ -170,40 +155,33 @@ export const UpiQrModal: React.FC<UpiQrModalProps> = ({
           </div>
         </div>
 
-        {/* Payer Account Selector */}
+        {/* Payer Account */}
         <div className="space-y-1">
-          <label className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">
-            Simulate Payer (Debit Account):
+          <label className="text-[11px] font-medium text-slate-600 dark:text-zinc-400">
+            Simulate Payer
           </label>
           <select
             value={payerId}
             onChange={(e) => setPayerId(e.target.value)}
-            className="w-full bg-[#0d1017] border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-blue-500"
+            className="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded-md px-2 py-1 text-xs text-slate-900 dark:text-zinc-100 font-mono"
           >
             {allAccounts
               .filter((a) => a.id !== account.id)
               .map((a) => (
                 <option key={a.id} value={a.id}>
-                  {a.name} ({a.vpa}) - Avail: ₹{a.balance.toLocaleString('en-IN')}
+                  {a.name} — ₹{a.balance.toLocaleString('en-IN')}
                 </option>
               ))}
           </select>
         </div>
 
-        {/* Scan & Pay Button */}
+        {/* Pay Button */}
         <button
           onClick={handleQuickPay}
           disabled={isProcessing || !payerId || Number(amount) <= 0}
-          className="w-full flex items-center justify-center space-x-2 py-3 rounded-xl bg-gradient-to-r from-blue-600 via-cyan-500 to-indigo-600 hover:opacity-90 text-white text-xs font-semibold shadow-lg shadow-blue-500/25 transition-all disabled:opacity-50"
+          className="w-full py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm transition-all disabled:opacity-40"
         >
-          {isProcessing ? (
-            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-          ) : (
-            <>
-              <Zap className="w-4 h-4" />
-              <span>Simulate Instant UPI Scan & Pay ₹{Number(amount || 0).toLocaleString('en-IN')}</span>
-            </>
-          )}
+          {isProcessing ? 'Processing...' : `Pay ₹${Number(amount || 0).toLocaleString('en-IN')}`}
         </button>
       </div>
     </div>
