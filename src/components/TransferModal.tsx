@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Account, Transaction } from '@/lib/types';
-import { Send, Key, Clock, ShieldAlert, CheckCircle2, RotateCcw, Zap } from 'lucide-react';
+import { Account, Transaction, TwoPhaseHold } from '@/lib/types';
+import { Send, Key, Clock, ShieldAlert, CheckCircle2, RotateCcw, Zap, Lock, ShieldCheck, ArrowRight, XCircle } from 'lucide-react';
 
 interface TransferModalProps {
   accounts: Account[];
+  activeHolds?: TwoPhaseHold[];
   sourceId: string;
   destId: string;
   setSourceId: (id: string) => void;
@@ -15,17 +16,21 @@ interface TransferModalProps {
 
 export const TransferModal: React.FC<TransferModalProps> = ({
   accounts,
+  activeHolds = [],
   sourceId,
   destId,
   setSourceId,
   setDestId,
   onTransferSuccess,
 }) => {
+  const [mode, setMode] = useState<'INSTANT' | 'TWOPHASE'>('INSTANT');
   const [amount, setAmount] = useState<string>('1500.00');
   const [description, setDescription] = useState<string>('Dinner bill split via UPI');
   const [idempotencyKey, setIdempotencyKey] = useState<string>('');
   const [simulatedLatency, setSimulatedLatency] = useState<number>(0);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [holdActionLoading, setHoldActionLoading] = useState<string | null>(null);
+
   const [lastResult, setLastResult] = useState<{
     success: boolean;
     tx?: Transaction;
@@ -61,35 +66,66 @@ export const TransferModal: React.FC<TransferModalProps> = ({
     setLastResult(null);
 
     try {
-      const res = await fetch('/api/transfer', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Idempotency-Key': idempotencyKey,
-        },
-        body: JSON.stringify({
-          sourceAccountId: sourceId,
-          destinationAccountId: destId,
-          amount: parseFloat(amount),
-          description,
-          simulatedLatencyMs: simulatedLatency,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (res.ok && data.success) {
-        setLastResult({
-          success: true,
-          tx: data.data,
-          replayed: data.replayedFromCache,
+      if (mode === 'INSTANT') {
+        const res = await fetch('/api/transfer', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Idempotency-Key': idempotencyKey,
+          },
+          body: JSON.stringify({
+            sourceAccountId: sourceId,
+            destinationAccountId: destId,
+            amount: parseFloat(amount),
+            description,
+            simulatedLatencyMs: simulatedLatency,
+          }),
         });
-        onTransferSuccess();
+
+        const data = await res.json();
+        if (res.ok && data.success) {
+          setLastResult({
+            success: true,
+            tx: data.data,
+            replayed: data.replayedFromCache,
+          });
+          onTransferSuccess();
+        } else {
+          setLastResult({
+            success: false,
+            error: data.error || 'UPI Transfer failed',
+          });
+        }
       } else {
-        setLastResult({
-          success: false,
-          error: data.error || 'UPI Transfer failed',
+        // Two-Phase Hold
+        const res = await fetch('/api/hold', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Idempotency-Key': idempotencyKey,
+          },
+          body: JSON.stringify({
+            action: 'create',
+            sourceAccountId: sourceId,
+            destinationAccountId: destId,
+            amount: parseFloat(amount),
+            description: `[PRE-AUTH] ${description}`,
+          }),
         });
+
+        const data = await res.json();
+        if (res.ok && data.success) {
+          setLastResult({
+            success: true,
+            error: undefined,
+          });
+          onTransferSuccess();
+        } else {
+          setLastResult({
+            success: false,
+            error: data.error || 'Hold creation failed',
+          });
+        }
       }
     } catch (err: any) {
       setLastResult({
@@ -101,24 +137,90 @@ export const TransferModal: React.FC<TransferModalProps> = ({
     }
   };
 
+  const handleCaptureHold = async (holdId: string) => {
+    setHoldActionLoading(holdId);
+    try {
+      const res = await fetch('/api/hold', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'capture', holdId }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        onTransferSuccess();
+      } else {
+        alert(data.error || 'Capture failed');
+      }
+    } catch (err: any) {
+      alert(err.message || 'Capture failed');
+    } finally {
+      setHoldActionLoading(null);
+    }
+  };
+
+  const handleVoidHold = async (holdId: string) => {
+    setHoldActionLoading(holdId);
+    try {
+      const res = await fetch('/api/hold', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'void', holdId }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        onTransferSuccess();
+      } else {
+        alert(data.error || 'Void failed');
+      }
+    } catch (err: any) {
+      alert(err.message || 'Void failed');
+    } finally {
+      setHoldActionLoading(null);
+    }
+  };
+
   return (
-    <div className="fintech-gradient-border rounded-2xl p-5 shadow-2xl">
-      <div className="flex items-center justify-between pb-4 border-b border-white/5">
+    <div className="fintech-gradient-border rounded-2xl p-5 shadow-2xl space-y-4">
+      {/* Header & Mode Switcher */}
+      <div className="flex items-center justify-between pb-3 border-b border-white/5">
         <div className="flex items-center space-x-2.5">
           <div className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20 flex items-center justify-center">
             <Send className="w-4 h-4" />
           </div>
           <div>
-            <h2 className="text-sm font-semibold text-white tracking-tight">Initiate UPI 2.0 Transfer</h2>
+            <h2 className="text-sm font-semibold text-white tracking-tight">Initiate UPI 2.0 Settlement</h2>
             <p className="text-[11px] text-slate-400">Atomic double-entry posting with NPCI RRN idempotency</p>
           </div>
         </div>
-        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-          NPCI SWITCH COMPLIANT
-        </span>
+
+        {/* Mode Pill Toggle */}
+        <div className="flex items-center p-0.5 rounded-lg bg-[#090b10] border border-white/5">
+          <button
+            type="button"
+            onClick={() => setMode('INSTANT')}
+            className={`px-2.5 py-1 rounded-md text-[10px] font-mono font-medium transition-all ${
+              mode === 'INSTANT'
+                ? 'bg-blue-600 text-white shadow'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            Instant UPI
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode('TWOPHASE')}
+            className={`px-2.5 py-1 rounded-md text-[10px] font-mono font-medium transition-all ${
+              mode === 'TWOPHASE'
+                ? 'bg-purple-600 text-white shadow'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            Two-Phase Hold
+          </button>
+        </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4">
         {/* Source and Destination Selectors */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
@@ -156,7 +258,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({
           </div>
         </div>
 
-        {/* Amount Input & Fast Presets */}
+        {/* Amount Input & Fast 1-Click Presets */}
         <div>
           <div className="flex items-center justify-between mb-1">
             <label className="text-[11px] font-medium text-slate-300 uppercase tracking-wider">
@@ -178,153 +280,182 @@ export const TransferModal: React.FC<TransferModalProps> = ({
               onChange={(e) => setAmount(e.target.value)}
               className="w-full bg-[#090b10] border border-white/10 rounded-xl pl-8 pr-4 py-2.5 text-sm font-mono-num font-semibold text-white focus:outline-none focus:border-blue-500"
               placeholder="0.00"
-              required
             />
           </div>
 
-          {/* Preset Buttons in INR */}
+          {/* Quick Amount Presets */}
           <div className="flex items-center space-x-2 mt-2">
-            {[500, 1000, 2000, 5000].map((val) => (
+            {[
+              { label: '₹250 (Coffee)', val: '250' },
+              { label: '₹640 (Swiggy)', val: '640' },
+              { label: '₹1,500 (Split)', val: '1500' },
+              { label: '₹5,000 (Rent)', val: '5000' },
+            ].map((preset) => (
               <button
-                key={val}
+                key={preset.val}
                 type="button"
-                onClick={() => setAmount(val.toFixed(2))}
-                className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/5 text-[10px] font-mono text-slate-300 transition-colors"
+                onClick={() => setAmount(preset.val)}
+                className="px-2 py-1 rounded-md text-[10px] font-mono font-medium bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/5 transition-colors"
               >
-                +₹{val.toLocaleString('en-IN')}
+                {preset.label}
               </button>
             ))}
           </div>
         </div>
 
-        {/* NPCI RRN / Idempotency Key Section */}
-        <div className="p-3 rounded-xl bg-[#090b10] border border-white/5 space-y-2">
+        {/* Description Input */}
+        <div>
+          <label className="block text-[11px] font-medium text-slate-300 uppercase tracking-wider mb-1">
+            Transaction Note / UPI Remarks
+          </label>
+          <input
+            type="text"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            className="w-full bg-[#090b10] border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500"
+            placeholder="e.g. Dinner split, Swiggy food order, rent payment"
+          />
+        </div>
+
+        {/* Idempotency Key & RRN Section */}
+        <div className="p-3 rounded-xl bg-[#08090d] border border-white/5 space-y-2">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-1.5 text-xs text-slate-300 font-medium">
+            <div className="flex items-center space-x-1.5 text-slate-300 text-[11px] font-medium">
               <Key className="w-3.5 h-3.5 text-amber-400" />
-              <span>NPCI RRN / Idempotency-Key</span>
+              <span>NPCI Retrieval Reference Number (RRN)</span>
             </div>
-            <div className="flex items-center space-x-2">
-              <button
-                type="button"
-                onClick={generateNewKey}
-                className="text-[10px] font-mono text-blue-400 hover:text-blue-300 flex items-center space-x-1"
-              >
-                <RotateCcw className="w-3 h-3" />
-                <span>New RRN</span>
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={generateNewKey}
+              className="flex items-center space-x-1 text-[10px] font-mono text-blue-400 hover:text-blue-300"
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span>Generate New RRN</span>
+            </button>
           </div>
+
           <input
             type="text"
             value={idempotencyKey}
             onChange={(e) => setIdempotencyKey(e.target.value)}
-            className="w-full bg-[#0e1017] border border-white/10 rounded-lg px-2.5 py-1.5 text-xs font-mono text-amber-300 focus:outline-none focus:border-amber-400/50"
-            required
+            className="w-full bg-[#0d1017] border border-white/5 rounded-lg px-2.5 py-1.5 text-xs font-mono text-cyan-400 focus:outline-none"
           />
-          <p className="text-[10px] text-slate-500">
-            UPI Protocol Guarantee: Submitting with identical RRN safely replays the previous confirmation without double-debiting.
+          <p className="text-[10px] text-slate-500 leading-normal">
+            Retrying this transfer with the same RRN will safely replay the existing response with zero double-charge.
           </p>
         </div>
 
-        {/* Simulated Network Latency Slider */}
-        <div className="flex items-center justify-between pt-1">
-          <div className="flex items-center space-x-1.5 text-[11px] text-slate-400">
-            <Clock className="w-3.5 h-3.5 text-slate-500" />
-            <span>Simulate Bank CBS Latency:</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <input
-              type="range"
-              min="0"
-              max="250"
-              step="25"
-              value={simulatedLatency}
-              onChange={(e) => setSimulatedLatency(Number(e.target.value))}
-              className="w-24 accent-blue-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer"
-            />
-            <span className="text-[11px] font-mono text-slate-300 w-12 text-right">
-              {simulatedLatency}ms
-            </span>
-          </div>
-        </div>
-
-        {/* Action Button */}
+        {/* Submit Button */}
         <button
           type="submit"
-          disabled={isSubmitting || Boolean(isInsufficient)}
-          className={`w-full py-3 px-4 rounded-xl font-semibold text-xs transition-all flex items-center justify-center space-x-2 shadow-lg ${
-            isInsufficient
-              ? 'bg-rose-500/10 text-rose-400 border border-rose-500/30 cursor-not-allowed'
-              : 'bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-500 hover:to-indigo-500 text-white shadow-blue-600/30 active:scale-[0.99]'
-          } disabled:opacity-50`}
+          disabled={isSubmitting || Boolean(isInsufficient) || !amount || Number(amount) <= 0}
+          className={`w-full flex items-center justify-center space-x-2 py-3 rounded-xl text-white text-xs font-semibold shadow-lg transition-all active:scale-[0.99] disabled:opacity-40 disabled:cursor-not-allowed ${
+            mode === 'INSTANT'
+              ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 shadow-blue-600/25'
+              : 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 shadow-purple-600/25'
+          }`}
         >
           {isSubmitting ? (
             <>
               <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              <span>Acquiring Bank Locks & Settling on NPCI Switch...</span>
-            </>
-          ) : isInsufficient ? (
-            <>
-              <ShieldAlert className="w-4 h-4" />
-              <span>Insufficient Funds in Payer Bank Account</span>
+              <span>Acquiring Row Locks & Posting to UPI Ledger...</span>
             </>
           ) : (
             <>
-              <Zap className="w-4 h-4 text-cyan-300" />
-              <span>Pay ₹{parseFloat(amount || '0').toLocaleString('en-IN')} via UPI</span>
+              <Zap className="w-4 h-4" />
+              <span>
+                {mode === 'INSTANT'
+                  ? `Execute UPI Transfer ₹${Number(amount || 0).toLocaleString('en-IN')}`
+                  : `Initiate Pre-Auth Hold ₹${Number(amount || 0).toLocaleString('en-IN')}`}
+              </span>
             </>
           )}
         </button>
       </form>
 
-      {/* Result Card Feedback */}
+      {/* Result Alert Feedback */}
       {lastResult && (
         <div
-          className={`mt-4 p-3.5 rounded-xl border text-xs animate-fade-in ${
+          className={`p-3.5 rounded-xl border text-xs animate-fade-in ${
             lastResult.success
-              ? lastResult.replayed
-                ? 'bg-amber-500/10 border-amber-500/30 text-amber-300'
-                : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
-              : 'bg-rose-500/10 border-rose-500/30 text-rose-300'
+              ? 'bg-emerald-950/20 border-emerald-500/40 text-emerald-300'
+              : 'bg-rose-950/20 border-rose-500/40 text-rose-300'
           }`}
         >
-          <div className="flex items-start space-x-2">
+          <div className="flex items-center space-x-2">
             {lastResult.success ? (
-              <CheckCircle2 className="w-4 h-4 mt-0.5 flex-shrink-0" />
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
             ) : (
-              <ShieldAlert className="w-4 h-4 mt-0.5 flex-shrink-0" />
+              <ShieldAlert className="w-4 h-4 text-rose-400 shrink-0" />
             )}
-            <div className="flex-1 space-y-1">
-              <div className="font-semibold flex items-center justify-between">
-                <span>
-                  {lastResult.success
-                    ? lastResult.replayed
-                      ? '⚡ IDEMPOTENT RRN REPLAY DETECTED'
-                      : '✓ UPI SETTLEMENT SUCCESSFUL'
-                    : '✗ UPI TRANSACTION FAILED'}
-                </span>
-                {lastResult.tx && (
-                  <span className="font-mono text-[10px] opacity-75">
-                    {lastResult.tx.executionTimeMs}ms
-                  </span>
-                )}
-              </div>
-              <p className="text-[11px] opacity-90">
+            <div>
+              <div className="font-semibold">
                 {lastResult.success
-                  ? lastResult.replayed
-                    ? 'Identical confirmation returned from in-memory cache without repeating account debit.'
-                    : `Settled ₹${lastResult.tx?.amount.toLocaleString('en-IN')} from ${lastResult.tx?.sourceAccountName} (${lastResult.tx?.sourceVpa}) to ${lastResult.tx?.destinationAccountName} (${lastResult.tx?.destinationVpa}).`
-                  : lastResult.error}
-              </p>
-              {lastResult.tx && (
-                <div className="pt-1 flex items-center space-x-2 text-[10px] font-mono opacity-80">
-                  <span>Txn: {lastResult.tx.id}</span>
-                  <span>•</span>
-                  <span>Locks: [{lastResult.tx.lockAcquiredOrder.join(' → ')}]</span>
-                </div>
-              )}
+                  ? mode === 'INSTANT'
+                    ? lastResult.replayed
+                      ? 'Replayed from Idempotency Cache (0 DB Debits)'
+                      : 'UPI Double-Entry Ledger Settled'
+                    : 'Pre-Auth Escrow Funds Held Successfully'
+                  : 'UPI Switch Transaction Rejected'}
+              </div>
+              <div className="text-[11px] opacity-90 mt-0.5">
+                {lastResult.error ||
+                  (lastResult.tx &&
+                    `Txn ID: ${lastResult.tx.id} • Latency: ${lastResult.tx.executionTimeMs}ms • Lock Order: [${lastResult.tx.lockAcquiredOrder.join(
+                      ', '
+                    )}]`)}
+              </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Active Holds Manager (Two-Phase Commit) */}
+      {mode === 'TWOPHASE' && activeHolds.filter((h) => h.status === 'HELD').length > 0 && (
+        <div className="pt-3 border-t border-white/5 space-y-2">
+          <div className="flex items-center justify-between text-xs font-medium text-slate-300">
+            <div className="flex items-center space-x-1.5">
+              <Lock className="w-3.5 h-3.5 text-amber-400" />
+              <span>Active Two-Phase Escrow Holds</span>
+            </div>
+            <span className="font-mono text-[10px] text-amber-400">
+              {activeHolds.filter((h) => h.status === 'HELD').length} Active
+            </span>
+          </div>
+
+          <div className="space-y-2">
+            {activeHolds
+              .filter((h) => h.status === 'HELD')
+              .map((hold) => (
+                <div
+                  key={hold.id}
+                  className="p-3 rounded-xl bg-black/40 border border-white/10 flex items-center justify-between text-xs"
+                >
+                  <div className="space-y-0.5">
+                    <div className="font-semibold text-white">
+                      ₹{hold.amount.toLocaleString('en-IN')} • {hold.sourceAccountName} ➔ {hold.destinationAccountName}
+                    </div>
+                    <div className="text-[10px] text-slate-400 font-mono">{hold.description}</div>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => handleCaptureHold(hold.id)}
+                      disabled={holdActionLoading === hold.id}
+                      className="px-2.5 py-1 rounded-lg bg-emerald-600/20 hover:bg-emerald-600 text-emerald-300 hover:text-white border border-emerald-500/30 text-[10px] font-semibold transition-all"
+                    >
+                      {holdActionLoading === hold.id ? 'Settling...' : 'Capture (Settle)'}
+                    </button>
+                    <button
+                      onClick={() => handleVoidHold(hold.id)}
+                      disabled={holdActionLoading === hold.id}
+                      className="px-2.5 py-1 rounded-lg bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white border border-rose-500/30 text-[10px] font-semibold transition-all"
+                    >
+                      Void
+                    </button>
+                  </div>
+                </div>
+              ))}
           </div>
         </div>
       )}

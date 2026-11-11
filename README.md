@@ -1,4 +1,4 @@
-# VaultCore: High-Throughput Distributed Payment Ledger & Concurrency Engine
+# VaultCore: High-Throughput Distributed Payment Ledger & Concurrency Engine v2.0
 
 [![Live Demo](https://img.shields.io/badge/Demo-vaultcore--mu.vercel.app-blue?style=for-the-badge&logo=vercel)](https://vaultcore-mu.vercel.app)
 [![GitHub](https://img.shields.io/badge/GitHub-vaibhavtevatia7946%2Fvaultcore-181717?style=for-the-badge&logo=github)](https://github.com/vaibhavtevatia7946/vaultcore)
@@ -8,7 +8,7 @@
 [![PostgreSQL](https://img.shields.io/badge/ACID-Serializable-336791.svg)](https://www.postgresql.org/)
 [![Audit Status](https://img.shields.io/badge/Invariant_Audit-100%25_Verified-10B981.svg)]()
 
-> A production-grade double-entry financial ledger and concurrency engine engineered to eliminate race conditions, duplicate debits, and distributed deadlocks in high-throughput payment systems.
+> A production-grade double-entry financial ledger, Merkle blockchain auditor, and concurrency engine engineered to eliminate race conditions, duplicate debits, and distributed deadlocks in high-throughput UPI 2.0 payment systems.
 
 ---
 
@@ -21,10 +21,10 @@
 ## 🏛️ System Architecture
 
 ```
-                                  [ Client / Mobile App / Webhook ]
+                                  [ Client / UPI QR App / Webhook ]
                                                   │
                                                   │  HTTPS POST /api/transfer
-                                                  │  Header: Idempotency-Key: <UUID>
+                                                  │  Header: Idempotency-Key: <NPCI_RRN>
                                                   ▼
                         ┌───────────────────────────────────────────────────┐
                         │              API Gateway & Rate Limiter           │
@@ -52,7 +52,7 @@
                          │ 3. Credit Destination Account Balance   │
                          │ 4. Insert DEBIT Ledger Record           │
                          │ 5. Insert CREDIT Ledger Record          │
-                         │ 6. Chain SHA-256 Merkle Hash            │
+                         │ 6. Deterministic SHA-256 Merkle Chain   │
                          └────────────────────────┬────────────────┘
                                                   │
                                                   ▼
@@ -65,37 +65,47 @@
 
 ---
 
-## ⚡ Core Computer Science & Engineering Principles
+## ⚡ Core Engineering Pillars
 
-### 1. Inviolable Double-Entry Bookkeeping
-Traditional naive e-commerce and fintech projects run:
+### 1. Inviolable RBI Double-Entry Bookkeeping
+Traditional naive fintech projects run:
 ```sql
--- DANGEROUS: No audit trail, prone to data loss
-UPDATE accounts SET balance = balance - 100 WHERE id = 'alice';
+-- DANGEROUS: No audit trail, prone to data loss and balance drift
+UPDATE accounts SET balance = balance - 100 WHERE id = 'aarav';
 ```
 In **VaultCore**, balances are strictly derived from an immutable append-only ledger:
-$$\sum \text{Credits} - \sum \text{Debits} = 0$$
+$$\sum \text{Credits} - \sum \text{Debits} \equiv ₹0.00$$
 Every transaction writes exactly two ledger rows:
 - `1x DEBIT` to the source account
 - `1x CREDIT` to the destination account
-- Cryptographic SHA-256 hash chaining of all entries for tamper-evidence.
+- Cryptographic SHA-256 Merkle hash chaining across all entries for tamper-evidence.
 
-### 2. Deadlock Elimination (Resource Ordering Algorithm)
-When User A transfers to User B, and User B transfers to User A simultaneously:
-- Thread 1 locks A, waits for B.
-- Thread 2 locks B, waits for A.
+### 2. Deadlock Elimination (Dijkstra Resource Ordering)
+When Aarav transfers to Priya, and Priya transfers to Aarav simultaneously:
+- Thread 1 locks Aarav, waits for Priya.
+- Thread 2 locks Priya, waits for Aarav.
 - **Result:** Classical Circular Wait Deadlock!
 
 **VaultCore’s Solution:**
-Both threads deterministically sort the resource IDs lexicographically:
+Both threads deterministically sort the account IDs lexicographically:
 $$\text{LockSequence} = \text{sort}([\text{ID}_A, \text{ID}_B])$$
 Both threads are forced to acquire `min(ID_A, ID_B)` before `max(ID_A, ID_B)`. Circular wait is mathematically eliminated.
 
-### 3. Distributed Idempotency (At-Most-Once Execution)
-Every incoming write request requires an `Idempotency-Key` header:
-1. When a key is received, it is atomically marked `IN_FLIGHT` with a TTL.
+### 3. Distributed Idempotency (NPCI RRN Guarantees)
+Every incoming payment request requires an `Idempotency-Key` / `NPCI RRN`:
+1. When a key is received, it is atomically marked `IN_FLIGHT`.
 2. If a duplicate arrives while processing, it receives `409 Conflict (In Progress)`.
 3. Once completed, the response payload is cached. Subsequent retries return the original transaction with header `X-Idempotent-Replay: true`—**guaranteeing zero double-charges**.
+
+### 4. Cryptographic SHA-256 Merkle Chain with Live Tamper Detection
+Every block hashes its predecessor's hash, transaction ID, account ID, amount, type, and timestamp:
+$$\text{BlockHash}_n = \text{SHA256}(\text{BlockHash}_{n-1} \parallel \text{TxID} \parallel \text{Amount} \parallel \text{Account} \parallel \text{Timestamp})$$
+The live web UI includes an interactive **"Simulate Database Tamper (+₹5,000)"** button, demonstrating how altering historical data immediately breaks downstream Merkle hashes and flags an audit integrity alarm.
+
+### 5. Two-Phase Commit (Hold & Settle / Pre-Auth Escrow)
+Supports Zomato/Uber style ride and food pre-auth locks:
+- **Phase 1 (HOLD):** Lock funds from available balance into `heldBalance`.
+- **Phase 2 (CAPTURE or VOID):** Atomic settlement upon delivery or void cancellation.
 
 ---
 
@@ -108,7 +118,7 @@ cd vaultcore
 npm install
 ```
 
-### 2. Run the Automated Test Suite
+### 2. Run the Automated Test Suite (7 Verification Suites)
 ```bash
 npm test
 ```
@@ -125,17 +135,17 @@ Open **[http://localhost:3000](http://localhost:3000)** in your browser.
 
 ## 📡 API Reference
 
-### 1. Execute Atomic Transfer
+### 1. Execute Atomic UPI Transfer
 ```http
 POST /api/transfer
 Content-Type: application/json
-Idempotency-Key: 7b31e13a-a10c-4df4-8d14-3c6a46dc17f0
+Idempotency-Key: RRN_1794396186538_754200
 
 {
-  "sourceAccountId": "acc_alice",
-  "destinationAccountId": "acc_bob",
-  "amount": 150.00,
-  "description": "Milestone 1 Payment"
+  "sourceAccountId": "acc_aarav",
+  "destinationAccountId": "acc_priya",
+  "amount": 1500.00,
+  "description": "Dinner bill split via UPI"
 }
 ```
 
@@ -144,19 +154,20 @@ Idempotency-Key: 7b31e13a-a10c-4df4-8d14-3c6a46dc17f0
 {
   "success": true,
   "data": {
-    "id": "tx_1762589000_a81f",
-    "idempotencyKey": "7b31e13a-a10c-4df4-8d14-3c6a46dc17f0",
-    "sourceAccountName": "Alice Cooper",
-    "destinationAccountName": "Bob Martinez",
-    "amount": 150.00,
+    "id": "upi_1794396186538_e3ijos",
+    "idempotencyKey": "RRN_1794396186538_754200",
+    "sourceAccountName": "Aarav Sharma",
+    "destinationAccountName": "Priya Patel",
+    "amount": 1500.00,
     "status": "COMPLETED",
-    "lockAcquiredOrder": ["acc_alice", "acc_bob"],
-    "executionTimeMs": 4.12
+    "lockAcquiredOrder": ["acc_aarav", "acc_priya"],
+    "executionTimeMs": 2.55
   },
   "replayedFromCache": false,
   "audit": {
     "isBalanced": true,
     "delta": 0,
+    "isChainValid": true,
     "systemIntegrityStatus": "VERIFIED"
   }
 }
@@ -169,20 +180,9 @@ Idempotency-Key: 7b31e13a-a10c-4df4-8d14-3c6a46dc17f0
 Under an aggressive multi-threaded stress test firing **50 simultaneous cross-transfers** between accounts:
 - **Total Requests:** 50
 - **Total Execution Time:** ~128ms
+- **Throughput:** ~390 TPS
 - **Average Latency:** 2.5ms / request
-- **Deadlocks Encountered:** 0
+- **P95 Latency:** 3.8ms
+- **Deadlocks Encountered:** 0 (Circular Wait eliminated)
 - **Race Condition Corruptions:** 0
-- **Mathematical Invariant Delta:** **$0.00 (100% Balanced)**
-
----
-
-## 💼 Interview Talking Points for CSE Students
-
-1. **"Why did you choose Double-Entry instead of standard CRUD balance updates?"**
-   > *"Double-entry guarantees an immutable audit trail. In standard CRUD, you cannot detect when or why balance drift occurs. With double-entry, `Σ(Debits) - Σ(Credits) == 0` acts as a continuous mathematical proof of system integrity."*
-
-2. **"How do you handle deadlocks in simultaneous transfers?"**
-   > *"I implemented Dijkstra's resource ordering algorithm. By lexicographically sorting account IDs before acquiring row locks, circular waits become mathematically impossible."*
-
-3. **"How does your system guarantee you don't double-charge a user on a network timeout?"**
-   > *"Every client generates a UUID `Idempotency-Key`. The backend stores in-flight and completed keys in an in-memory cache. If a timeout causes the client to retry, the server detects the key and returns the cached confirmation without executing a secondary ledger posting."*
+- **Mathematical Invariant Delta:** **₹0.00 (100% Balanced)**

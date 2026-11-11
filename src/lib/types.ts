@@ -7,14 +7,15 @@ export interface Account {
   accountNumber: string;
   bankName: string;
   type: AccountType;
-  balance: number; // in INR (₹)
+  balance: number; // in INR (₹) - available
+  heldBalance?: number; // funds locked in Two-Phase Commit / Pre-Auth
   currency: string;
   avatarColor: string;
   createdAt: string;
   updatedAt: string;
 }
 
-export type TransactionStatus = 'PENDING' | 'COMPLETED' | 'FAILED' | 'ROLLED_BACK';
+export type TransactionStatus = 'PENDING' | 'COMPLETED' | 'FAILED' | 'ROLLED_BACK' | 'HELD' | 'CAPTURED' | 'VOIDED';
 
 export interface Transaction {
   id: string;
@@ -47,8 +48,10 @@ export interface LedgerEntry {
   amount: number;
   currency: string;
   balanceAfter: number;
+  prevHash: string; // Hash of the previous block in the chain
   hash: string; // SHA-256 Merkle chain hash
   createdAt: string;
+  isTampered?: boolean;
 }
 
 export interface InvariantAudit {
@@ -60,6 +63,9 @@ export interface InvariantAudit {
   totalLedgerEntries: number;
   systemIntegrityStatus: 'VERIFIED' | 'COMPROMISED';
   lastAuditTime: string;
+  isChainValid: boolean;
+  tamperedEntryId?: string | null;
+  heldFunds?: number;
 }
 
 export interface IdempotencyRecord {
@@ -67,6 +73,22 @@ export interface IdempotencyRecord {
   status: 'IN_FLIGHT' | 'COMPLETED';
   responsePayload?: any;
   createdAt: number;
+}
+
+export interface TwoPhaseHold {
+  id: string;
+  idempotencyKey: string;
+  sourceAccountId: string;
+  sourceAccountName: string;
+  sourceVpa: string;
+  destinationAccountId: string;
+  destinationAccountName: string;
+  destinationVpa: string;
+  amount: number;
+  currency: string;
+  description: string;
+  status: 'HELD' | 'CAPTURED' | 'VOIDED';
+  createdAt: string;
 }
 
 export interface ConcurrencySimulationResult {
@@ -77,6 +99,8 @@ export interface ConcurrencySimulationResult {
   raceConditionDoubleSpendsDetected: number;
   totalExecutionTimeMs: number;
   avgLatencyMs: number;
+  p95LatencyMs: number;
+  tps: number;
   auditInvariantMaintained: boolean;
   logs: string[];
 }

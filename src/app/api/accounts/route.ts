@@ -6,12 +6,14 @@ export async function GET() {
     const accounts = ledger.getAccounts();
     const transactions = ledger.getTransactions();
     const ledgerEntries = ledger.getLedgerEntries();
+    const activeHolds = ledger.getActiveHolds();
     const audit = ledger.auditSystem();
 
     return NextResponse.json({
       accounts,
       transactions,
       ledgerEntries,
+      activeHolds,
       audit,
     });
   } catch (error: any) {

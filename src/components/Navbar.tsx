@@ -1,15 +1,15 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ShieldCheck, RefreshCw, Activity, Terminal, ArrowRightLeft, ExternalLink, X, CheckCircle2, Lock } from 'lucide-react';
+import { ShieldCheck, RefreshCw, Activity, Terminal, ArrowRightLeft, ExternalLink, X, CheckCircle2, Lock, Layers } from 'lucide-react';
 import { InvariantAudit } from '@/lib/types';
 
 interface NavbarProps {
   audit: InvariantAudit | null;
   onReset: () => void;
   isResetting: boolean;
-  activeTab: 'dashboard' | 'stress-test' | 'architecture';
-  setActiveTab: (tab: 'dashboard' | 'stress-test' | 'architecture') => void;
+  activeTab: 'dashboard' | 'stress-test' | 'blockchain' | 'architecture';
+  setActiveTab: (tab: 'dashboard' | 'stress-test' | 'blockchain' | 'architecture') => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -35,7 +35,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <div className="flex items-center space-x-2">
                 <span className="text-lg font-bold tracking-tight text-white">VaultCore</span>
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-semibold">
-                  PROD v1.0
+                  PROD v2.0
                 </span>
               </div>
               <p className="text-xs text-slate-400 hidden sm:block">
@@ -48,7 +48,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           <nav className="flex items-center p-1 bg-[#0F1118] rounded-xl border border-white/5">
             <button
               onClick={() => setActiveTab('dashboard')}
-              className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                 activeTab === 'dashboard'
                   ? 'bg-blue-600 text-white shadow-md shadow-blue-600/30'
                   : 'text-slate-400 hover:text-slate-200'
@@ -60,7 +60,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             
             <button
               onClick={() => setActiveTab('stress-test')}
-              className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                 activeTab === 'stress-test'
                   ? 'bg-purple-600 text-white shadow-md shadow-purple-600/30'
                   : 'text-slate-400 hover:text-slate-200'
@@ -71,8 +71,20 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
 
             <button
+              onClick={() => setActiveTab('blockchain')}
+              className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                activeTab === 'blockchain'
+                  ? 'bg-cyan-600 text-white shadow-md shadow-cyan-600/30'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Layers className="w-3.5 h-3.5" />
+              <span>Merkle Chain</span>
+            </button>
+
+            <button
               onClick={() => setActiveTab('architecture')}
-              className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                 activeTab === 'architecture'
                   ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30'
                   : 'text-slate-400 hover:text-slate-200'
@@ -93,14 +105,21 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               <span
                 className={`w-2 h-2 rounded-full ${
-                  audit?.isBalanced
+                  audit?.isBalanced && audit?.isChainValid !== false
                     ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)] animate-pulse'
                     : 'bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.8)]'
                 }`}
               />
               <span className="text-xs font-mono text-slate-300">
-                AUDIT: <span className={audit?.isBalanced ? 'text-emerald-400 font-semibold' : 'text-rose-400 font-bold'}>
-                  {audit?.isBalanced ? '100% INTACT' : 'IMBALANCE DETECTED'}
+                AUDIT:{' '}
+                <span
+                  className={
+                    audit?.isBalanced && audit?.isChainValid !== false
+                      ? 'text-emerald-400 font-semibold'
+                      : 'text-rose-400 font-bold'
+                  }
+                >
+                  {audit?.isBalanced && audit?.isChainValid !== false ? '100% INTACT' : 'IMBALANCE DETECTED'}
                 </span>
               </span>
               <span className="text-[10px] text-slate-500 font-mono group-hover:text-emerald-400 transition-colors">
@@ -116,7 +135,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-medium text-slate-300 hover:text-white transition-colors"
             >
               <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
-                <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+                <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
               </svg>
               <span className="hidden sm:inline">GitHub</span>
               <ExternalLink className="w-3 h-3 text-slate-500" />
@@ -133,7 +152,6 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span className="hidden sm:inline">Reset</span>
             </button>
           </div>
-
         </div>
       </header>
 
@@ -154,22 +172,34 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
               <div>
                 <h3 className="text-base font-bold text-white">Mathematical Ledger Invariant Proof</h3>
-                <p className="text-xs text-slate-400">Real-time banking balance audit calculation</p>
+                <p className="text-xs text-slate-400">Real-time Reserve Bank of India (RBI) CBS audit validation</p>
               </div>
             </div>
 
             <div className="p-4 rounded-xl bg-[#08090d] border border-white/5 space-y-3 font-mono text-xs">
               <div className="flex justify-between items-center text-slate-300">
                 <span>Sum of All Credits:</span>
-                <span className="text-emerald-400 font-bold">${audit?.totalCredits.toFixed(2)} USD</span>
+                <span className="text-emerald-400 font-bold">
+                  ₹{(audit?.totalCredits || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })} INR
+                </span>
               </div>
               <div className="flex justify-between items-center text-slate-300">
                 <span>Sum of All Debits:</span>
-                <span className="text-rose-400 font-bold">${audit?.totalDebits.toFixed(2)} USD</span>
+                <span className="text-rose-400 font-bold">
+                  ₹{(audit?.totalDebits || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })} INR
+                </span>
               </div>
               <div className="pt-2 border-t border-white/10 flex justify-between items-center text-sm">
                 <span className="text-white font-semibold">Invariant Delta (Δ):</span>
-                <span className="text-emerald-400 font-bold">${audit?.delta.toFixed(2)} USD</span>
+                <span className="text-emerald-400 font-bold">
+                  ₹{(audit?.delta || 0).toFixed(2)} INR
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-slate-400 text-[11px] pt-1">
+                <span>Cryptographic Chain:</span>
+                <span className={audit?.isChainValid !== false ? 'text-emerald-400 font-semibold' : 'text-rose-400 font-bold'}>
+                  {audit?.isChainValid !== false ? 'SHA-256 MERKLE VERIFIED' : 'TAMPER DETECTED'}
+                </span>
               </div>
             </div>
 
@@ -178,8 +208,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <Lock className="w-3.5 h-3.5 text-blue-400" />
                 <span>The Core Banking Invariance Formula:</span>
               </div>
-              <div className="p-2.5 rounded-lg bg-white/5 font-mono text-cyan-300 text-center">
-                Σ(Credits) - Σ(Debits) ≡ 0.00
+              <div className="p-2.5 rounded-lg bg-white/5 font-mono text-cyan-300 text-center font-bold">
+                Σ(Credits) - Σ(Debits) ≡ ₹0.00
               </div>
               <p className="text-[11px] text-slate-500">
                 Because every single transaction generates equal and opposite debit and credit entries, money can never be fabricated or lost due to software race conditions or network latency.

@@ -4,9 +4,10 @@
 // ====================================================================
 
 import assert from 'assert';
+import crypto from 'crypto';
 
 console.log('\n=============================================================');
-console.log('🇮🇳 VAULTCORE: NPCI & UPI 2.0 CONCURRENCY TEST SUITE');
+console.log('🇮🇳 VAULTCORE: NPCI & UPI 2.0 CONCURRENCY TEST SUITE v2.0');
 console.log('=============================================================\n');
 
 let testsPassed = 0;
@@ -39,13 +40,21 @@ async function runAsyncTest(testName, fn) {
 class TestLedger {
   constructor() {
     this.accounts = new Map([
-      ['aarav', { id: 'aarav', name: 'Aarav Sharma', vpa: 'aarav@oksbi', balance: 50000.0, currency: 'INR' }],
-      ['priya', { id: 'priya', name: 'Priya Patel', vpa: 'priya@icici', balance: 25000.0, currency: 'INR' }],
-      ['treasury', { id: 'treasury', name: 'RBI Settlement Pool', vpa: 'npci.settle@rbi', balance: 10000000.0, currency: 'INR' }],
+      ['aarav', { id: 'aarav', name: 'Aarav Sharma', vpa: 'aarav@oksbi', balance: 50000.0, heldBalance: 0, currency: 'INR' }],
+      ['priya', { id: 'priya', name: 'Priya Patel', vpa: 'priya@icici', balance: 25000.0, heldBalance: 0, currency: 'INR' }],
+      ['treasury', { id: 'treasury', name: 'RBI Settlement Pool', vpa: 'npci.settle@rbi', balance: 10000000.0, heldBalance: 0, currency: 'INR' }],
     ]);
     this.ledger = [];
     this.idempotency = new Map();
     this.locks = new Map();
+    this.holds = new Map();
+  }
+
+  calculateHash(prevHash, txId, amount, accountId, type, createdAt) {
+    return crypto
+      .createHash('sha256')
+      .update(`${prevHash}:${txId}:${Number(amount).toFixed(2)}:${accountId}:${type}:${createdAt}`)
+      .digest('hex');
   }
 
   async acquireSortedLocks(acc1, acc2) {
@@ -88,8 +97,14 @@ class TestLedger {
       dst.balance = Number((dst.balance + amount).toFixed(2));
 
       const txId = `upi_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-      this.ledger.push({ txId, accountId: sourceId, type: 'DEBIT', amount });
-      this.ledger.push({ txId, accountId: destId, type: 'CREDIT', amount });
+      const now = new Date().toISOString();
+      const prevHash = this.ledger.length > 0 ? this.ledger[this.ledger.length - 1].hash : 'GENESIS_ROOT';
+
+      const debitHash = this.calculateHash(prevHash, txId, amount, sourceId, 'DEBIT', now);
+      const creditHash = this.calculateHash(debitHash, txId, amount, destId, 'CREDIT', now);
+
+      this.ledger.push({ id: `led_deb_${Date.now()}`, txId, accountId: sourceId, type: 'DEBIT', amount, prevHash, hash: debitHash, createdAt: now });
+      this.ledger.push({ id: `led_crd_${Date.now()}`, txId, accountId: destId, type: 'CREDIT', amount, prevHash: debitHash, hash: creditHash, createdAt: now });
 
       const result = {
         txId,
@@ -104,6 +119,36 @@ class TestLedger {
     } finally {
       unlock();
     }
+  }
+
+  holdFunds(sourceId, destId, amount, holdId) {
+    const src = this.accounts.get(sourceId);
+    if (!src || src.balance < amount) throw new Error('Insufficient available balance for pre-auth hold');
+    src.balance = Number((src.balance - amount).toFixed(2));
+    src.heldBalance = Number(((src.heldBalance || 0) + amount).toFixed(2));
+    this.holds.set(holdId, { sourceId, destId, amount, status: 'HELD' });
+    return this.holds.get(holdId);
+  }
+
+  captureFunds(holdId) {
+    const hold = this.holds.get(holdId);
+    if (!hold || hold.status !== 'HELD') throw new Error('Invalid hold');
+    const src = this.accounts.get(hold.sourceId);
+    const dst = this.accounts.get(hold.destId);
+    src.heldBalance = Number((src.heldBalance - hold.amount).toFixed(2));
+    dst.balance = Number((dst.balance + hold.amount).toFixed(2));
+    hold.status = 'CAPTURED';
+    return hold;
+  }
+
+  verifyChainIntegrity() {
+    for (let i = 0; i < this.ledger.length; i++) {
+      const entry = this.ledger[i];
+      const expectedHash = this.calculateHash(entry.prevHash, entry.txId, entry.amount, entry.accountId, entry.type, entry.createdAt);
+      if (entry.hash !== expectedHash) return false;
+      if (i > 0 && entry.prevHash !== this.ledger[i - 1].hash) return false;
+    }
+    return true;
   }
 
   verifyInvariant() {
@@ -182,6 +227,36 @@ async function runAllSuites() {
     const audit = ledger.verifyInvariant();
     assert.strictEqual(audit.delta, 0.0, 'RBI Mathematical delta MUST remain ₹0.00');
     console.log(`    ↳ Verified 50 concurrent UPI txns | Total Debits: ₹${audit.debits} | Total Credits: ₹${audit.credits} | Delta: ₹${audit.delta}`);
+  });
+
+  // Test 6: Merkle Chain Cryptographic Audit
+  runTest('Suite 6: SHA-256 Merkle chain verification detects forged historical records', () => {
+    assert.strictEqual(ledger.verifyChainIntegrity(), true, 'Chain must initially be 100% verified');
+
+    // Simulate malicious tamper
+    const originalAmount = ledger.ledger[1].amount;
+    ledger.ledger[1].amount = 999999.0; // Tamper without recalculating hash
+    assert.strictEqual(ledger.verifyChainIntegrity(), false, 'Chain integrity check must detect altered block');
+
+    // Restore original amount
+    ledger.ledger[1].amount = originalAmount;
+    assert.strictEqual(ledger.verifyChainIntegrity(), true, 'Chain must be valid once restored');
+  });
+
+  // Test 7: Two-Phase Commit Escrow (Hold & Capture)
+  runTest('Suite 7: Two-Phase Commit holds funds from available balance and captures atomically', () => {
+    const aaravAvailBefore = ledger.accounts.get('aarav').balance;
+    const priyaAvailBefore = ledger.accounts.get('priya').balance;
+
+    // 1. Hold ₹1,000
+    ledger.holdFunds('aarav', 'priya', 1000.0, 'hold_test_001');
+    assert.strictEqual(ledger.accounts.get('aarav').balance, aaravAvailBefore - 1000.0);
+    assert.strictEqual(ledger.accounts.get('aarav').heldBalance, 1000.0);
+
+    // 2. Capture Hold
+    ledger.captureFunds('hold_test_001');
+    assert.strictEqual(ledger.accounts.get('aarav').heldBalance, 0.0);
+    assert.strictEqual(ledger.accounts.get('priya').balance, priyaAvailBefore + 1000.0);
   });
 
   console.log('\n-------------------------------------------------------------');

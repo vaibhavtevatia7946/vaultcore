@@ -1,20 +1,25 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Account } from '@/lib/types';
-import { Send, ArrowDownLeft, Store, UserCheck, Landmark, QrCode } from 'lucide-react';
+import { Send, ArrowDownLeft, Store, UserCheck, Landmark, QrCode, Lock } from 'lucide-react';
+import { UpiQrModal } from './UpiQrModal';
 
 interface WalletCardsProps {
   accounts: Account[];
   onSelectTransfer: (sourceId: string, destId?: string) => void;
   selectedSourceId: string;
+  onRefresh: () => void;
 }
 
 export const WalletCards: React.FC<WalletCardsProps> = ({
   accounts,
   onSelectTransfer,
   selectedSourceId,
+  onRefresh,
 }) => {
+  const [activeQrAccount, setActiveQrAccount] = useState<Account | null>(null);
+
   const getBadge = (type: Account['type']) => {
     switch (type) {
       case 'MERCHANT':
@@ -42,7 +47,7 @@ export const WalletCards: React.FC<WalletCardsProps> = ({
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-base font-semibold text-white tracking-tight">Active Indian Bank Accounts & Wallets</h2>
@@ -56,6 +61,7 @@ export const WalletCards: React.FC<WalletCardsProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {accounts.map((acc) => {
           const isSelected = selectedSourceId === acc.id;
+          const hasHeldFunds = (acc.heldBalance || 0) > 0;
 
           return (
             <div
@@ -95,11 +101,19 @@ export const WalletCards: React.FC<WalletCardsProps> = ({
               </div>
 
               {/* Middle Row: Balance */}
-              <div className="mt-3 pt-3 border-t border-white/5">
-                <div className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">
-                  Available Balance
+              <div className="mt-3 pt-3 border-t border-white/5 space-y-1">
+                <div className="flex items-center justify-between">
+                  <div className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">
+                    Available Balance
+                  </div>
+                  {hasHeldFunds && (
+                    <div className="flex items-center space-x-1 text-[10px] font-mono text-amber-400 bg-amber-500/10 px-1.5 py-0.2 rounded border border-amber-500/20">
+                      <Lock className="w-2.5 h-2.5" />
+                      <span>Held: ₹{acc.heldBalance?.toLocaleString('en-IN')}</span>
+                    </div>
+                  )}
                 </div>
-                <div className="flex items-baseline space-x-1 mt-0.5">
+                <div className="flex items-baseline space-x-1">
                   <span className="text-sm font-bold text-slate-400">₹</span>
                   <span className="text-2xl font-bold font-mono-num text-white tracking-tight">
                     {acc.balance.toLocaleString('en-IN', {
@@ -112,26 +126,52 @@ export const WalletCards: React.FC<WalletCardsProps> = ({
               </div>
 
               {/* Bottom Row: Quick Actions */}
-              <div className="mt-4 flex items-center space-x-2">
+              <div className="mt-4 grid grid-cols-3 gap-2">
                 <button
                   onClick={() => onSelectTransfer(acc.id)}
-                  className="flex-1 flex items-center justify-center space-x-1.5 py-2 px-3 rounded-xl bg-blue-600/10 hover:bg-blue-600 text-blue-400 hover:text-white border border-blue-500/20 hover:border-blue-600 text-xs font-medium transition-all"
+                  className="flex items-center justify-center space-x-1 py-2 px-2 rounded-xl bg-blue-600/10 hover:bg-blue-600 text-blue-400 hover:text-white border border-blue-500/20 hover:border-blue-600 text-xs font-medium transition-all"
+                  title="Select as Payer"
                 >
-                  <Send className="w-3.5 h-3.5" />
-                  <span>Pay From</span>
+                  <Send className="w-3 h-3" />
+                  <span>Pay</span>
                 </button>
+
                 <button
                   onClick={() => onSelectTransfer('', acc.id)}
-                  className="flex-1 flex items-center justify-center space-x-1.5 py-2 px-3 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 text-xs font-medium transition-all"
+                  className="flex items-center justify-center space-x-1 py-2 px-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 text-xs font-medium transition-all"
+                  title="Select as Payee"
                 >
-                  <ArrowDownLeft className="w-3.5 h-3.5" />
-                  <span>Receive To</span>
+                  <ArrowDownLeft className="w-3 h-3" />
+                  <span>Receive</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveQrAccount(acc)}
+                  className="flex items-center justify-center space-x-1 py-2 px-2 rounded-xl bg-cyan-500/10 hover:bg-cyan-500 text-cyan-400 hover:text-white border border-cyan-500/20 hover:border-cyan-500 text-xs font-medium transition-all"
+                  title="Show UPI QR Code"
+                >
+                  <QrCode className="w-3 h-3" />
+                  <span>QR</span>
                 </button>
               </div>
             </div>
           );
         })}
       </div>
+
+      {/* UPI QR Modal */}
+      {activeQrAccount && (
+        <UpiQrModal
+          account={activeQrAccount}
+          allAccounts={accounts}
+          isOpen={Boolean(activeQrAccount)}
+          onClose={() => setActiveQrAccount(null)}
+          onPaymentComplete={() => {
+            onRefresh();
+            setActiveQrAccount(null);
+          }}
+        />
+      )}
     </div>
   );
 };
