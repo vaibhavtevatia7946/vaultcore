@@ -322,9 +322,9 @@ class LedgerEngine {
         createdAt: now,
       };
 
-      // Unshift in reverse order so credit is top, followed by debit
-      this.ledgerEntries.unshift(creditEntry);
+      // Unshift debit first, then credit so credit is at head (index 0) and chronological order is preserved
       this.ledgerEntries.unshift(debitEntry);
+      this.ledgerEntries.unshift(creditEntry);
 
       // Track cumulative totals
       this.cumulativeDebits = Number((this.cumulativeDebits + amount).toFixed(2));
@@ -479,8 +479,8 @@ class LedgerEngine {
       createdAt: now,
     };
 
-    this.ledgerEntries.unshift(creditEntry);
     this.ledgerEntries.unshift(debitEntry);
+    this.ledgerEntries.unshift(creditEntry);
 
     this.cumulativeDebits = Number((this.cumulativeDebits + hold.amount).toFixed(2));
     this.cumulativeCredits = Number((this.cumulativeCredits + hold.amount).toFixed(2));
