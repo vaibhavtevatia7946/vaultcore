@@ -1,4 +1,4 @@
-const path = require('path');
+onst path = require('path');
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
