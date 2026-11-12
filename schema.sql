@@ -3,7 +3,7 @@
 -- ACID-Compliant Double-Entry Ledger with Strict Serializable Isolation
 -- ====================================================================
 
--- Enable UUID extensions
+-- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- 1. Accounts Table (Wallets and System Entities)
