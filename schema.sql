@@ -1,5 +1,5 @@
 -- ====================================================================
--- VaultCore Production PostgreSQL Database Schemas
+-- VaultCore Production PostgreSQL Database Schema
 -- ACID-Compliant Double-Entry Ledger with Strict Serializable Isolation
 -- ====================================================================
 
