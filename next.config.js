@@ -4,7 +4,7 @@ const path = require('path');
 const nextConfig = {
   reactStrictMode: true,
   typescript: {
-    ignoreBuildErrors: true,bb
+    ignoreBuildErrors: true,
   },
   eslint: {
     ignoreDuringBuilds: true,
